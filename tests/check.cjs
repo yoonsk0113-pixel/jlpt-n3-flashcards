@@ -14,9 +14,9 @@ function boot(data=fixtures,storage=new Map(),blocked=false) {
   const document = {getElementById(id){if(!nodes.has(id))nodes.set(id,node());return nodes.get(id)},createElement:node,createDocumentFragment:node,addEventListener(name,fn){events[name]=fn}};
   const localStorage = {getItem:key=>storage.get(key)??null,setItem(key,value){if(blocked)throw Error('blocked');storage.set(key,value)}};
   let code = source.replace(/const wordData = [\s\S]*?\n};/,`const wordData = ${JSON.stringify(data)};`);
-  code = code.replace('  showHome(false);','  globalThis.test = {selectMode,openDay,answer,revealAnswer,previousCard,startSession,showHome,counts,groupVocabulary,validVocab,get state(){return state},get view(){return view}}; showHome(false);');
-  const context = {document,localStorage};vm.runInNewContext(code,context);
-  return {a:context.test,n:nodes,storage,events};
+  code = code.replace('  showHome(false);','  globalThis.test = {resetDay,selectMode,openDay,answer,revealAnswer,previousCard,startSession,showHome,counts,groupVocabulary,validVocab,get state(){return state},get view(){return view}}; showHome(false);');
+  const context = {document,localStorage,confirm:()=>true};vm.runInNewContext(code,context);
+  return {a:context.test,n:nodes,storage,events,context};
 }
 let x=boot();const a=x.a;a.selectMode('vocab');a.openDay('Day 1');
 assert.equal(a.state.revealed,false);assert(x.n.get('known').hidden);assert(x.n.get('details').hidden);
@@ -61,4 +61,26 @@ const fifty=boot({'Day 1':array.slice(0,50)});fifty.a.selectMode('vocab');fifty.
 for(let i=0;i<50;i++){fifty.a.revealAnswer();fifty.a.answer(i%2===0);assert(fifty.a.validVocab(fifty.a.state,'Day 1'));}
 assert.equal(fifty.a.counts(fifty.a.state).assessed,50);assert.equal(fifty.a.counts(fifty.a.state).unknown,25);
 console.log('PASS: reveal gating, six fields, single advance, stable IDs, revisions, reload, mode isolation, terminating reviews, restart preservation, 50-card completion, data shapes, migration, malformed/unavailable storage.');
+const chapters = {'Day 1':fixtures['Day 1'],'Day 2':fixtures['Day 1']};
+const reset = boot(chapters);
+reset.a.selectMode('vocab');reset.a.openDay('Day 1');reset.a.revealAnswer();reset.a.answer(true);
+reset.a.openDay('Day 2');reset.a.revealAnswer();reset.a.answer(false);
+reset.a.selectMode('kanji');reset.a.openDay('Day 1');reset.a.answer(false);
+const kanjiRecord = reset.storage.get('jlpt_kanji_Day1');
+const secondRecord = reset.storage.get('jlpt_vocab_v2_Day2');
+reset.a.selectMode('vocab');reset.a.openDay('Day 1');
+reset.context.confirm = ()=>false;
+const beforeCancel = reset.storage.get('jlpt_vocab_v2_Day1');
+assert.equal(reset.a.resetDay('Day 1'),false);assert.equal(reset.storage.get('jlpt_vocab_v2_Day1'),beforeCancel);
+reset.context.confirm = ()=>true;
+assert.equal(reset.a.resetDay('Day 1'),true);reset.a.showHome();
+assert.equal(reset.storage.get('jlpt_vocab_v2_Day2'),secondRecord);assert.equal(reset.storage.get('jlpt_kanji_Day1'),kanjiRecord);
+const afterReset = boot(chapters,reset.storage);afterReset.a.selectMode('vocab');afterReset.a.openDay('Day 1');
+assert.equal(afterReset.a.counts(afterReset.a.state).assessed,0);assert.equal(afterReset.a.state.index,0);assert.equal(afterReset.a.state.revealed,false);
+afterReset.a.selectMode('kanji');assert.equal(afterReset.a.resetDay('Day 1'),true);afterReset.a.openDay('Day 1');
+assert.equal(afterReset.a.state.round,1);assert.equal(afterReset.a.state.index,0);assert.equal(afterReset.a.state.back,false);
+assert.equal(afterReset.storage.get('jlpt_vocab_v2_Day2'),secondRecord);
+const failed = boot(chapters,new Map([['jlpt_vocab_v2_Day1',beforeCancel]]),true);failed.a.selectMode('vocab');failed.a.openDay('Day 1');
+assert.equal(failed.a.resetDay('Day 1'),false);assert.equal(failed.a.counts(failed.a.state).known,1);
+console.log('PASS: per-day vocabulary/kanji reset, cancel, cross-day and cross-mode isolation, no stale-session overwrite, reload, storage-error preservation.');
 
