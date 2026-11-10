@@ -47,6 +47,11 @@
     .small { font-size:13px; color:var(--muted); }
     .days { list-style:none; margin:0; padding:0; }
     .day { width:100%; border:0; border-bottom:1px solid var(--line); background:transparent; text-align:left; padding:23px 2px; display:flex; align-items:center; justify-content:space-between; gap:16px; }
+    .day-entry { border-bottom:1px solid var(--line); }
+    .day-entry .day { border-bottom:0; }
+    .day-tools { display:flex; justify-content:flex-end; padding:0 0 10px; }
+    .reset-day { min-height:44px; border:0; border-radius:8px; background:transparent; color:var(--red); padding:8px 12px; font-size:13px; }
+    @media (hover:hover) { .reset-day:hover:not(:disabled) { background:#f4e3df; } }
     .day-title { display:block; font-size:20px; font-weight:750; }
     .day-count { display:block; margin-top:3px; font-size:13px; color:var(--muted); }
     .day-status { color:var(--green); font-size:13px; font-weight:700; text-align:right; }
@@ -7520,7 +7525,7 @@ const kanjiData = {
     days.forEach(key => {
       const s = saved.get(key), usable = validData(key);
       if (mode === 'vocab' ? s && counts(s).remaining === 0 : s?.done) completed++;
-      const li = document.createElement('li');
+      const li = document.createElement('li'); li.className = 'day-entry';
       const button = document.createElement('button');
       button.className = 'day'; button.disabled = !usable;
       const info = document.createElement('span');
@@ -7533,13 +7538,37 @@ const kanjiData = {
         count.textContent = c.assessed + ' / ' + data[key].length + ' 학습 완료 · 알고 있다 ' + c.known + ' · 모른다 ' + c.unknown;
         status.textContent = s.done ? '결과 보기' : '이어서 하기';
       }
-      info.append(title,count); button.append(info,status); li.append(button); fragment.append(li);
+      if (s && (mode === 'vocab' ? counts(s).assessed === 0 && s.index === 0 && !s.revealed : s.round === 1 && s.index === 0 && !s.back)) status.textContent = '시작하기';
+      info.append(title,count); button.append(info,status); li.append(button);
+      const tools = document.createElement('div'), reset = document.createElement('button');
+      tools.className = 'day-tools'; reset.className = 'reset-day';
+      reset.id = 'reset-' + key.replace(/\s/g,'');
+      reset.textContent = '학습 초기화'; reset.disabled = !usable;
+      reset.setAttribute('aria-label',config.short + ' ' + label(key) + ' 학습 초기화');
+      reset.addEventListener('click', () => resetDay(key));
+      tools.append(reset); li.append(tools); fragment.append(li);
       button.addEventListener('click', () => openDay(key));
     });
     ui.days.replaceChildren(fragment);
     ui['day-summary'].textContent = `${days.length}일차 중 ${completed}일차 완료`;
     if (!days.length) warn('등록된 단어장이 없어요. 단어 데이터를 추가한 뒤 다시 열어 주세요.');
     if (focus) ui['menu-title'].focus();
+  }
+
+  function resetDay(key) {
+    if (!validData(key)) return false;
+    if (!confirm(config.short + ' ' + label(key) + '의 진행도와 암기 기록을 초기화할까요?\n이 일차만 처음부터 시작하며, 다른 일차와 모드의 기록은 그대로 유지됩니다.')) return false;
+    const clean = fresh(key);
+    // Write a fresh record instead of deleting: legacy progress must not reappear.
+    try { localStorage.setItem(storageKey(key),JSON.stringify(clean)); }
+    catch { warn('초기화 내용을 저장할 수 없어 기존 기록을 유지했어요. 브라우저 저장 설정을 확인하고 다시 시도해 주세요.'); return false; }
+    saved.set(key,clean);
+    // Prevent an older active session from overwriting the reset on navigation.
+    if (day === key) { day = null; state = null; }
+    showMenu(false);
+    ui.announcement.textContent = config.short + ' ' + label(key) + ' 학습을 초기화했어요.';
+    document.getElementById('reset-' + key.replace(/\s/g,'')).focus();
+    return true;
   }
 
   function openDay(key, restart = false) {
