@@ -7,16 +7,16 @@ const source = fs.readFileSync(path.join(__dirname,'../index.html'),'utf8').matc
 const sample = {word:'同',hiragana:'どう',pronunciation:'도',meaning:'같음',kanji_composition:'한자',explanation:'설명',mnemonic:'기억'};
 const fixtures = {'Day 1':Array.from({length:3},()=>({...sample}))};
 function boot(data=fixtures,storage=new Map(),blocked=false) {
-  const nodes = new Map(), events = {};
+  const nodes = new Map(), events = {}, writes = [];
   const node = () => ({hidden:false,disabled:false,textContent:'',children:[],classList:{toggle(){},add(){},remove(){}},
-    append(...x){this.children.push(...x)},replaceChildren(...x){this.children=x},focus(){},setAttribute(){},
+    append(...x){this.children.push(...x)},replaceChildren(...x){this.children=x},focus(){},setAttribute(){},scrollIntoView(){},
     addEventListener(name,fn){this[name]=fn}});
-  const document = {getElementById(id){if(!nodes.has(id))nodes.set(id,node());return nodes.get(id)},createElement:node,createDocumentFragment:node,addEventListener(name,fn){events[name]=fn}};
-  const localStorage = {getItem:key=>storage.get(key)??null,setItem(key,value){if(blocked)throw Error('blocked');storage.set(key,value)}};
+  const document = {getSelection:()=>'',getElementById(id){if(!nodes.has(id))nodes.set(id,node());return nodes.get(id)},createElement:node,createDocumentFragment:node,addEventListener(name,fn){const old=events[name];events[name]=e=>{old?.(e);fn(e)}}};
+  const localStorage = {getItem:key=>storage.get(key)??null,setItem(key,value){if(blocked)throw Error('blocked');writes.push(key);storage.set(key,value)}};
   let code = source.replace(/const wordData = [\s\S]*?\n};/,`const wordData = ${JSON.stringify(data)};`);
-  code = code.replace('  showHome(false);','  globalThis.test = {resetDay,selectMode,openDay,answer,revealAnswer,previousCard,startSession,showHome,counts,groupVocabulary,validVocab,get state(){return state},get view(){return view}}; showHome(false);');
-  const context = {document,localStorage,confirm:()=>true};vm.runInNewContext(code,context);
-  return {a:context.test,n:nodes,storage,events,context};
+  code = code.replace('  showHome(false);','  globalThis.test = {openStudy,moveStudy,canStudy,get studyIndex(){return studyIndex},resetDay,selectMode,openDay,answer,revealAnswer,previousCard,startSession,showHome,counts,groupVocabulary,validVocab,get state(){return state},get view(){return view}}; showHome(false);');
+  const context = {document,localStorage,confirm:()=>true,window:{innerWidth:390},matchMedia:()=>({matches:true})};vm.runInNewContext(code,context);
+  return {a:context.test,n:nodes,storage,events,context,writes};
 }
 let x=boot();const a=x.a;a.selectMode('vocab');a.openDay('Day 1');
 assert.equal(a.state.revealed,false);assert(x.n.get('known').hidden);assert(x.n.get('details').hidden);
@@ -83,4 +83,39 @@ assert.equal(afterReset.storage.get('jlpt_vocab_v2_Day2'),secondRecord);
 const failed = boot(chapters,new Map([['jlpt_vocab_v2_Day1',beforeCancel]]),true);failed.a.selectMode('vocab');failed.a.openDay('Day 1');
 assert.equal(failed.a.resetDay('Day 1'),false);assert.equal(failed.a.counts(failed.a.state).known,1);
 console.log('PASS: per-day vocabulary/kanji reset, cancel, cross-day and cross-mode isolation, no stale-session overwrite, reload, storage-error preservation.');
+const reading=boot(chapters);reading.a.selectMode('vocab');reading.a.openDay('Day 1');reading.a.revealAnswer();reading.a.answer(true);
+const masteryBefore=reading.storage.get('jlpt_vocab_v2_Day1');reading.writes.length=0;
+reading.a.openStudy('Day 1');assert.equal(reading.a.view,'study');assert.equal(reading.a.studyIndex,0);
+assert.equal(reading.n.get('study-details').children[0].children.length,6);assert.equal(reading.n.get('study-word').textContent,sample.word);
+assert.equal(reading.n.get('learning').hidden,true);assert.equal(reading.n.get('study-prev').disabled,true);
+assert.equal(reading.a.moveStudy(-1),false);assert.equal(reading.a.moveStudy(1),true);
+reading.n.get('study-next').click({detail:2});assert.equal(reading.a.studyIndex,1);
+reading.n.get('study-next').click({detail:1});assert.equal(reading.a.studyIndex,2);
+assert(reading.n.get('study-next').disabled);assert.equal(reading.a.moveStudy(1),false);assert.equal(reading.a.view,'study');
+reading.n.get('study-first').click();assert.equal(reading.a.studyIndex,0);
+const card=reading.n.get('study-card');
+function swipe(x1,y1,x2,y2,cancel=false) {card.pointerdown({isPrimary:true,pointerType:'touch',pointerId:1,clientX:x1,clientY:y1});if(cancel)card.pointercancel();card.pointerup({pointerId:1,clientX:x2,clientY:y2});}
+swipe(300,100,100,110);assert.equal(reading.a.studyIndex,1);
+card.pointerup({pointerId:1,clientX:100,clientY:110});assert.equal(reading.a.studyIndex,1);
+swipe(100,100,300,110);assert.equal(reading.a.studyIndex,0);
+swipe(200,100,140,300);assert.equal(reading.a.studyIndex,0);
+swipe(10,100,200,100);assert.equal(reading.a.studyIndex,0);
+swipe(300,100,100,100,true);assert.equal(reading.a.studyIndex,0);
+const key={key:'ArrowRight',target:{tagName:'BODY',isContentEditable:false},preventDefault(){}};
+reading.events.keydown(key);assert.equal(reading.a.studyIndex,1);
+reading.events.keydown({...key,repeat:true});assert.equal(reading.a.studyIndex,1);
+reading.a.openStudy('Day 2');assert.equal(reading.a.studyIndex,0);reading.a.moveStudy(2);
+reading.a.openStudy('Day 1');assert.equal(reading.a.studyIndex,1);
+reading.n.get('study-back').click();reading.a.showHome();reading.a.selectMode('kanji');
+assert.equal(reading.storage.get('jlpt_vocab_v2_Day1'),masteryBefore);assert(reading.writes.every(k=>k.startsWith('jlpt_study_v1_')));
+const readingReload=boot(chapters,reading.storage);readingReload.a.selectMode('vocab');readingReload.a.openStudy('Day 2');assert.equal(readingReload.a.studyIndex,2);
+for(const value of ['null','broken',JSON.stringify({version:1,index:999}),JSON.stringify({version:1,index:-1})]) {
+ const bad=boot(fixtures,new Map([['jlpt_study_v1_Day1',value]]));bad.a.selectMode('vocab');bad.a.openStudy('Day 1');assert.equal(bad.a.studyIndex,0);
+}
+const optional=boot({'Day 1':[{...sample,explanation:'',mnemonic:undefined}]});optional.a.selectMode('vocab');optional.a.openStudy('Day 1');
+assert.equal(optional.n.get('study-details').children[0].children.length,4);
+const allDays=Object.fromEntries(Array.from({length:15},(_,i)=>['Day '+(i+1),[{...sample,word:'単語'+i}]]));
+const every=boot(allDays);every.a.selectMode('vocab');
+for(let i=0;i<15;i++){every.a.openStudy('Day '+(i+1));assert.equal(every.n.get('study-word').textContent,'単語'+i);assert(every.n.get('study-next').disabled);}
+console.log('PASS: 15 study chapters, immediate details, optional fields, swipe directions/vertical/edges/cancel, buttons/keyboard/repeat guards, boundaries, separate position restore, no mastery writes.');
 
