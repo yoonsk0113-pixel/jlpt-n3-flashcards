@@ -2,7 +2,7 @@
 <html lang="ko">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="theme-color" content="#f5f3ed">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-title" content="매일 한 장">
@@ -52,6 +52,20 @@
     .day-tools { display:flex; justify-content:flex-end; padding:0 0 10px; }
     .reset-day { min-height:44px; border:0; border-radius:8px; background:transparent; color:var(--red); padding:8px 12px; font-size:13px; }
     @media (hover:hover) { .reset-day:hover:not(:disabled) { background:#f4e3df; } }
+    .study-open { min-height:44px; padding:8px 16px; border:0; border-radius:8px; background:#dfebdf; color:var(--green); font-weight:700; font-size:14px; margin-right:auto; }
+    .study-heading { display:flex; justify-content:space-between; align-items:baseline; gap:16px; margin:10px 0 16px; }
+    .study-heading h1 { font-size:26px; }
+    .study-position { color:var(--muted); font-variant-numeric:tabular-nums; white-space:nowrap; }
+    .study-card { touch-action:pan-y pinch-zoom; padding:28px 0 2px; }
+    .study-card .word { font-size:clamp(36px,10vw,56px); padding:0 24px 8px; text-align:left; scroll-margin-top:20px; }
+    .study-card .details { padding-top:0; }
+    .study-card .details .key-answer { font-size:22px; font-weight:650; }
+    .study-card .details li:first-child { border:0; margin-top:0; padding-top:0; }
+    .study-nav { display:grid; grid-template-columns:1fr auto 1fr; align-items:center; gap:16px; position:sticky; bottom:0; background:var(--paper); padding:16px 0 max(16px,env(safe-area-inset-bottom)); z-index:1; }
+    .study-nav .action { min-height:48px; padding:10px; }
+    .study-end { text-align:center; margin:10px 0 4px; }
+    #study { padding-inline:max(0px,env(safe-area-inset-left)) max(0px,env(safe-area-inset-right)); }
+    @media (hover:hover) { .study-open:hover { background:#cddfcd; } }
     .day-title { display:block; font-size:20px; font-weight:750; }
     .day-count { display:block; margin-top:3px; font-size:13px; color:var(--muted); }
     .day-status { color:var(--green); font-size:13px; font-weight:700; text-align:right; }
@@ -148,6 +162,22 @@
       <button id="next" class="action neutral full" aria-keyshortcuts="Space Enter" hidden>넘긴다</button>
     </div>
     <p id="keyboard-help" class="help">왼쪽 화살표: 모른다 · 오른쪽 화살표: 알고 있다</p>
+  </section>
+  <section id="study" hidden>
+    <nav class="navigation" aria-label="읽기 학습 탐색"><button id="study-back" class="back-link">← 챕터로 돌아가기</button></nav>
+    <div class="study-heading"><h1 id="study-title" tabindex="-1">학습하기</h1><span id="study-position" class="study-position"></span></div>
+    <progress id="study-progress" value="1" max="50" aria-label="현재 읽는 카드 위치"></progress>
+    <p class="help">좌우로 넘겨 읽어 보세요. 암기 기록은 바뀌지 않아요.</p>
+    <article id="study-card" class="card study-card" aria-label="단어 읽기 카드">
+      <h2 id="study-word" class="word japanese" lang="ja" tabindex="-1"></h2>
+      <ul id="study-details" class="details"></ul>
+    </article>
+    <div id="study-end" class="study-end" hidden><p class="small">이 일차의 마지막 카드예요.</p><button id="study-first" class="back-link">처음부터 보기</button></div>
+    <nav class="study-nav" aria-label="카드 이동">
+      <button id="study-prev" class="action neutral" aria-keyshortcuts="ArrowLeft">← 이전</button>
+      <span id="study-bottom-position" class="study-position"></span>
+      <button id="study-next" class="action primary" aria-keyshortcuts="ArrowRight">다음 →</button>
+    </nav>
   </section>
   <section id="result" class="result" hidden>
     <svg class="result-icon" viewBox="0 0 56 56" fill="none" aria-hidden="true"><circle cx="28" cy="28" r="26" stroke="currentColor" stroke-width="1.5"/><path d="m17 28 8 8 15-17" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
@@ -7455,7 +7485,7 @@ const kanjiData = {
     kanji: { title:'한자 공부하기', short:'한자', data:kanjiData, front:'kanji', dayCount:10,
       fields:[['meaning','뜻'],['onyomi','음독'],['kunyomi','훈독'],['examples','대표 단어'],['mnemonic','암기법']] }
   };
-  const ids = ['reveal','previous','assessment-status','remaining-label','unknown-label','result-message','result-total-label','result-rounds-label','result-first-label','review-unknown','result-previous','restart','home','home-button','home-title','notice','menu','learning','result','days','day-summary','menu-title','day-title','round','remaining','known-count','unknown-count','position','round-hint','progress','card','word','details','unknown','known','next','keyboard-help','result-title','result-total','result-rounds','result-first','announcement'];
+  const ids = ['study','study-back','study-title','study-position','study-progress','study-card','study-word','study-details','study-end','study-first','study-prev','study-next','study-bottom-position','reveal','previous','assessment-status','remaining-label','unknown-label','result-message','result-total-label','result-rounds-label','result-first-label','review-unknown','result-previous','restart','home','home-button','home-title','notice','menu','learning','result','days','day-summary','menu-title','day-title','round','remaining','known-count','unknown-count','position','round-hint','progress','card','word','details','unknown','known','next','keyboard-help','result-title','result-total','result-rounds','result-first','announcement'];
   const ui = Object.fromEntries(ids.map(id => [id, document.getElementById(id)]));
   let mode = null, config = null, data = {}, days = [], fields = [];
   let saved = new Map(), signatures = new Map();
@@ -7515,7 +7545,7 @@ const kanjiData = {
   function setView(nextView) {
     view = nextView;
     ui['home-button'].hidden = view === 'home';
-    for (const name of ['home','menu','learning','result']) ui[name].hidden = name !== view;
+    for (const name of ['home','menu','learning','study','result']) ui[name].hidden = name !== view;
   }
 
   function showMenu(focus = true) {
@@ -7546,6 +7576,13 @@ const kanjiData = {
       reset.textContent = '학습 초기화'; reset.disabled = !usable;
       reset.setAttribute('aria-label',config.short + ' ' + label(key) + ' 학습 초기화');
       reset.addEventListener('click', () => resetDay(key));
+      if (mode === 'vocab') {
+        const studyButton = document.createElement('button');
+        studyButton.className = 'study-open'; studyButton.textContent = '학습하기'; studyButton.disabled = !canStudy(key);
+        studyButton.setAttribute('aria-label',label(key) + ' 학습하기');
+        studyButton.addEventListener('click', () => openStudy(key));
+        tools.append(studyButton);
+      }
       tools.append(reset); li.append(tools); fragment.append(li);
       button.addEventListener('click', () => openDay(key));
     });
@@ -7773,11 +7810,12 @@ const kanjiData = {
     persist(); render();
   }
 
-  function renderDetails(word,visible) {
-    ui.details.hidden = !visible;
-    ui.details.classList.toggle('reveal',visible);
+  function renderDetails(word,visible,target = ui.details,skipEmpty = false) {
+    target.hidden = !visible;
+    target.classList.toggle('reveal',visible);
     const fragment = document.createDocumentFragment();
     if (visible) fields.forEach(([field,title]) => {
+      if (skipEmpty && (typeof word[field] !== 'string' || !word[field].trim())) return;
       const li = document.createElement('li'), strong = document.createElement('strong'), value = document.createElement('span');
       strong.textContent = title; value.textContent = word[field] || '등록된 내용이 없어요.';
       if (['hiragana','onyomi','kunyomi'].includes(field)) { value.lang = 'ja'; value.className = 'japanese'; }
@@ -7785,7 +7823,7 @@ const kanjiData = {
       if (['hiragana','meaning'].includes(field)) li.className = 'key-answer';
       li.append(strong,value); fragment.append(li);
     });
-    ui.details.replaceChildren(fragment);
+    target.replaceChildren(fragment);
   }
 
   function renderVocab() {
@@ -7847,6 +7885,78 @@ const kanjiData = {
     }
   }
   }
+  let studyDay = null, studyIndex = 0, swipe = null;
+  const studyPositions = new Map();
+  const studyKey = key => 'jlpt_study_v1_' + key.replace(/\s/g,'');
+  const studyWords = key => modes.vocab.data[key];
+  const canStudy = key => Array.isArray(studyWords(key)) && studyWords(key).length > 0 && studyWords(key).every(w => w && typeof w.word === 'string' && w.word.trim());
+
+  function saveStudyPosition() {
+    const value = {version:1,index:studyIndex};
+    studyPositions.set(studyDay,value);
+    try { localStorage.setItem(studyKey(studyDay),JSON.stringify(value)); }
+    catch { warn('읽던 위치를 저장하지 못했어요. 학습은 계속할 수 있지만 새로고침 후 위치가 유지되지 않을 수 있어요.'); }
+  }
+
+  function openStudy(key) {
+    if (mode !== 'vocab' || !canStudy(key)) return;
+    // Quiz actions are already saved. Reading must never persist quiz state.
+    state = null; day = null; studyDay = key; studyIndex = 0; swipe = null;
+    try {
+      const previous = studyPositions.get(key) ?? JSON.parse(localStorage.getItem(studyKey(key)) || 'null');
+      if (previous?.version === 1 && Number.isInteger(previous.index) && previous.index >= 0 && previous.index < studyWords(key).length) studyIndex = previous.index;
+    } catch { warn('읽던 위치를 불러오지 못해 첫 카드부터 보여 드려요.'); }
+    setView('study'); renderStudy(); ui['study-title'].focus();
+  }
+
+  function renderStudy() {
+    const words = studyWords(studyDay), word = words[studyIndex];
+    ui['study-title'].textContent = label(studyDay) + ' · 학습하기';
+    ui['study-position'].textContent = ui['study-bottom-position'].textContent = `${studyIndex+1} / ${words.length}`;
+    ui['study-progress'].max = words.length; ui['study-progress'].value = studyIndex+1;
+    ui['study-word'].textContent = word.word;
+    renderDetails(word,true,ui['study-details'],true);
+    ui['study-prev'].disabled = studyIndex === 0;
+    ui['study-next'].disabled = studyIndex === words.length-1;
+    ui['study-end'].hidden = studyIndex !== words.length-1;
+    ui.announcement.textContent = `${label(studyDay)}, ${words.length}개 중 ${studyIndex+1}번째 단어, ${word.word}`;
+  }
+
+  function moveStudy(offset) {
+    if (view !== 'study') return false;
+    const next = studyIndex + offset;
+    if (next < 0 || next >= studyWords(studyDay).length) return false;
+    studyIndex = next; saveStudyPosition(); renderStudy();
+    // Long explanations can scroll naturally; a new word begins at its heading.
+    ui['study-word'].scrollIntoView({block:'start',behavior:'instant'});
+    if (!matchMedia('(prefers-reduced-motion: reduce)').matches && ui['study-card'].animate) {
+      ui['study-card'].animate([{transform:`translateX(${offset > 0 ? 10 : -10}px)`,opacity:.8},{transform:'translateX(0)',opacity:1}],{duration:160,easing:'ease-out'});
+    }
+    return true;
+  }
+
+  ui['study-back'].addEventListener('click', () => { swipe = null; showMenu(); });
+  ui['study-prev'].addEventListener('click', event => { if (event.detail < 2) moveStudy(-1); });
+  ui['study-next'].addEventListener('click', event => { if (event.detail < 2) moveStudy(1); });
+  ui['study-first'].addEventListener('click', () => moveStudy(-studyIndex));
+  ui['study-card'].addEventListener('pointerdown', event => {
+    swipe = null;
+    if (view !== 'study' || !event.isPrimary || event.pointerType === 'mouse' || event.clientX < 28 || event.clientX > window.innerWidth-28) return;
+    swipe = {id:event.pointerId,x:event.clientX,y:event.clientY};
+  }, {passive:true});
+  ui['study-card'].addEventListener('pointerup', event => {
+    const start = swipe; swipe = null;
+    if (!start || start.id !== event.pointerId || document.getSelection()?.toString()) return;
+    const dx = event.clientX-start.x, dy = event.clientY-start.y;
+    if (Math.abs(dx) >= 48 && Math.abs(dx) > Math.abs(dy)*1.5) moveStudy(dx < 0 ? 1 : -1);
+  }, {passive:true});
+  ui['study-card'].addEventListener('pointercancel', () => { swipe = null; }, {passive:true});
+  document.addEventListener('keydown', event => {
+    if (view !== 'study' || event.repeat || event.altKey || event.ctrlKey || event.metaKey || event.isComposing || event.target.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(event.target.tagName)) return;
+    if (event.key === 'ArrowLeft' || event.key === 'ArrowRight') { event.preventDefault(); moveStudy(event.key === 'ArrowRight' ? 1 : -1); }
+  });
+
+
   showHome(false);
 })();
 </script>
