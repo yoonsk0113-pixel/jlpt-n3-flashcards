@@ -126,6 +126,7 @@
     @media (prefers-reduced-motion:reduce) { *,*::before,*::after { animation:none !important; transition:none !important; } }
     .exam-mode { background:#223c52; color:#fffefa; }
     @media (hover:hover) { .exam-mode:hover { background:#162a3b; } }
+    @media (hover:hover) { .day.exam-day-row:hover { background:transparent; } }
     .exam-tools { display:flex; gap:8px; justify-content:flex-end; padding:0 0 10px; flex-wrap:wrap; }
     .exam-open-btn { min-height:40px; padding:6px 14px; border:0; border-radius:8px; background:#223c52; color:#fffefa; font-weight:700; font-size:13px; }
     @media (hover:hover) { .exam-open-btn:hover { background:#162a3b; } }
@@ -137,10 +138,13 @@
     .exam-sheet { background:#fffefa; border-radius:16px; border:1px solid var(--line); padding:24px 20px; box-shadow:0 8px 24px #29372608; margin-top:16px; }
     .exam-instruction { font-size:13px; color:var(--muted); margin-bottom:12px; line-height:1.5; font-weight:600; }
     .exam-stem { font-size:clamp(26px,7vw,38px); font-weight:750; text-align:center; padding:20px 10px; margin-bottom:20px; background:var(--paper); border-radius:12px; line-height:1.4; word-break:break-all; }
+    .exam-stem.sentence { font-size:clamp(19px,5.4vw,23px); font-weight:650; text-align:left; line-height:1.75; padding:18px 18px; word-break:normal; line-break:strict; }
+    .exam-target { text-decoration:underline; text-decoration-thickness:2px; text-underline-offset:.24em; text-decoration-color:var(--green); font-weight:800; }
     .exam-options { display:grid; gap:10px; list-style:none; padding:0; margin:0; }
     .exam-option-btn { width:100%; text-align:left; padding:15px 16px; border-radius:12px; border:2px solid var(--line); background:#fffefa; font-size:16px; font-weight:600; display:flex; align-items:center; gap:12px; }
     .exam-option-num { display:inline-flex; align-items:center; justify-content:center; width:26px; height:26px; border-radius:50%; background:#e8ebe4; font-size:13px; font-weight:750; flex-shrink:0; }
     .exam-option-text { flex-grow:1; font-family:"Noto Sans JP","Hiragino Sans","Yu Gothic",sans-serif; }
+    .exam-option-text { word-break:normal; line-break:strict; }
     .exam-option-btn.selected { border-color:#246347; background:#eaf5ee; color:#18442f; }
     .exam-option-btn.selected .exam-option-num { background:#246347; color:#fff; }
     @media (hover:hover) { .exam-option-btn:hover:not(.selected) { background:#f5f6f2; border-color:#abb4a6; } }
@@ -167,6 +171,7 @@
     <div class="intro"><h1 id="home-title" tabindex="-1">오늘은 무엇을<br>익혀 볼까요?</h1><p>단어의 뜻부터 한자의 읽기까지.<br>모르는 것만 한 번 더, 나만의 속도로 공부해요.</p></div>
     <div class="mode-options">
       <button id="vocab-mode" class="mode-button vocab-mode"><strong>일본어 단어 공부하기</strong><span>읽기와 뜻을 함께 · 15일 과정</span></button>
+      <button id="exam-mode" class="mode-button exam-mode"><strong>JLPT 어휘 시험</strong><span>N3 실전 유형 4지선다 · 15일 과정</span></button>
       <button id="kanji-mode" class="mode-button kanji-mode"><strong>한자 공부하기</strong><span>음독부터 훈독까지 · 10일 과정</span></button>
     </div>
     <p class="note">각 과정의 학습 기록과 시험 결과는 브라우저에 안전하게 저장돼요.<br>단어 15일차 · 750개와 한자 10일차 · 60자가 준비되어 있어요.</p>
@@ -221,6 +226,68 @@
     <button id="result-menu" class="action primary full">목록으로 돌아가기</button>
     <button id="restart" class="action neutral full">처음부터 다시 하기</button>
   </section>
+  <section id="exam-menu" hidden>
+    <div class="intro"><h1 id="exam-menu-title" tabindex="-1">JLPT 어휘 시험</h1><p>실제 N3 문제 유형으로 일차별 단어를 점검해요.<br>틀린 단어는 카드로 바로 복습할 수 있어요.</p></div>
+    <div class="section-head"><h2>시험 볼 일차</h2><span id="exam-day-summary" class="small"></span></div>
+    <ul id="exam-days" class="days"></ul>
+    <p class="note">시험 기록은 이 브라우저에 일차별로 누적 저장돼요.</p>
+  </section>
+  <section id="exam" hidden>
+    <nav class="navigation" aria-label="시험 탐색"><button id="exam-back" class="back-link">← 시험 목록으로</button></nav>
+    <div class="learning-head"><h1 id="exam-day-title" tabindex="-1"></h1><span id="exam-type-badge" class="round"></span></div>
+    <div class="progress-meta"><span id="exam-position"></span><span id="exam-unanswered-count"></span></div>
+    <progress id="exam-progress" value="0" max="1" aria-label="시험 진행률"></progress>
+    <div class="exam-sheet">
+      <p id="exam-instruction" class="exam-instruction japanese" lang="ja"></p>
+      <p id="exam-stem" class="exam-stem japanese" lang="ja"></p>
+      <div id="exam-options" class="exam-options" role="radiogroup" aria-labelledby="exam-stem"></div>
+    </div>
+    <div class="exam-nav">
+      <button id="exam-prev" class="action neutral" aria-keyshortcuts="ArrowLeft">← 이전 문제</button>
+      <button id="exam-next" class="action neutral" aria-keyshortcuts="ArrowRight">다음 문제 →</button>
+    </div>
+    <button id="exam-submit" class="action primary full exam-submit-btn">답안 제출하기</button>
+    <p class="help">숫자 1~4: 선택지 고르기 · 좌우 화살표: 문제 이동</p>
+  </section>
+  <section id="exam-result" class="result" hidden>
+    <h1 id="exam-result-title" tabindex="-1"></h1><p id="exam-result-message"></p>
+    <div class="exam-score-box"><div id="exam-score-percent" class="exam-score-percent"></div><div id="exam-score-ratio" class="exam-score-ratio"></div></div>
+    <dl><div><dt>일차</dt><dd id="exam-result-day"></dd></div><div><dt>응시 일시</dt><dd id="exam-result-date"></dd></div><div><dt>총 문항</dt><dd id="exam-result-total"></dd></div><div><dt>맞힌 문항</dt><dd id="exam-result-correct"></dd></div><div><dt>틀린 단어</dt><dd id="exam-result-wrong"></dd></div></dl>
+    <div id="exam-wrong-container" hidden><div class="section-head"><h2>틀린 문제</h2></div><ul id="exam-wrong-list" class="exam-wrong-list"></ul></div>
+    <button id="exam-review-start" class="action primary full">오답 단어 복습</button>
+    <button id="exam-toggle-answers" class="action neutral full">전체 정답 확인</button>
+    <div id="exam-all-answers" hidden></div>
+    <button id="exam-retake" class="action neutral full">다시 시험 보기</button>
+    <button id="exam-result-menu" class="action neutral full">시험 목록으로 돌아가기</button>
+  </section>
+  <section id="exam-review" hidden>
+    <nav class="navigation" aria-label="오답 복습 탐색"><button id="exam-review-back" class="back-link">← 시험 결과로</button></nav>
+    <div class="study-heading"><h1 id="exam-review-title" tabindex="-1">오답 복습</h1><span id="exam-review-position" class="study-position"></span></div>
+    <progress id="exam-review-progress" value="0" max="1" aria-label="오답 복습 위치"></progress>
+    <div id="exam-review-empty" class="exam-empty-box" hidden><p>복습할 오답 단어가 없어요.</p><button id="exam-review-empty-back" class="action neutral">시험 결과로 돌아가기</button></div>
+    <article id="exam-review-card" class="card study-card" aria-label="오답 단어 카드">
+      <span id="exam-review-badge" class="exam-review-badge"></span>
+      <h2 id="exam-review-word" class="word japanese" lang="ja" tabindex="-1"></h2>
+      <ul id="exam-review-details" class="details"></ul>
+    </article>
+    <div id="exam-review-end" class="study-end" hidden><p class="small">마지막 오답 카드예요.</p><button id="exam-review-finish" class="back-link">복습 마치기</button></div>
+    <nav id="exam-review-nav" class="study-nav" aria-label="오답 카드 이동">
+      <button id="exam-review-prev" class="action neutral" aria-keyshortcuts="ArrowLeft">← 이전</button>
+      <span id="exam-review-bottom-position" class="study-position"></span>
+      <button id="exam-review-next" class="action primary" aria-keyshortcuts="ArrowRight">다음 →</button>
+    </nav>
+  </section>
+  <div id="exam-modal" class="exam-modal-overlay" role="dialog" aria-modal="true" aria-labelledby="exam-modal-title" aria-describedby="exam-modal-desc" hidden>
+    <div class="exam-modal-box">
+      <h2 id="exam-modal-title"></h2>
+      <p id="exam-modal-desc" class="small"></p>
+      <div class="exam-modal-actions">
+        <button id="exam-modal-standard" class="action primary full"></button>
+        <button id="exam-modal-full" class="action neutral full"></button>
+        <button id="exam-modal-cancel" class="back-link">취소</button>
+      </div>
+    </div>
+  </div>
   <p id="announcement" class="sr-only" role="status" aria-live="polite" aria-atomic="true"></p>
 </main>
 <script>
@@ -7578,7 +7645,7 @@ const kanjiData = {
   function setView(nextView) {
     view = nextView;
     ui['home-button'].hidden = view === 'home';
-    for (const name of ['home','menu','learning','study','result']) ui[name].hidden = name !== view;
+    for (const name of ['home','menu','learning','study','result','exam-menu','exam','exam-result','exam-review']) ui[name].hidden = name !== view;
   }
 
   function showMenu(focus = true) {
@@ -7757,6 +7824,11 @@ const kanjiData = {
   document.getElementById('restart').addEventListener('click', () => openDay(day,true));
   document.addEventListener('keydown', event => {
     if (event.altKey || event.ctrlKey || event.metaKey || event.isComposing || event.target.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(event.target.tagName)) return;
+
+    if (!ui['exam-modal'].hidden) {
+      if (event.key === 'Escape') { event.preventDefault(); hideExamModal(); ui[view + '-title']?.focus(); }
+      return;
+    }
 
     if (view === 'exam') {
       if (['1', '2', '3', '4'].includes(event.key)) {
@@ -8031,69 +8103,305 @@ const kanjiData = {
 
 
   // --- JLPT N3 어휘 모의시험 시스템 ---
+  // JLPT N3 유형별 고정 지시문. 검수 문항(verifiedQuestions)은 type만 지정하고 여기서 typeName/instruction을 가져옵니다.
+  const EXAM_TYPES = {
+    1: { typeName: '問題1 한자 읽기', instruction: '下線のことばの読み方として最もよいものを、1・2・3・4から一つえらびなさい。' },
+    2: { typeName: '問題2 표기', instruction: '下線のことばを漢字で書くとき、最もよいものを、1・2・3・4から一つえらびなさい。' },
+    3: { typeName: '問題3 문맥 규정', instruction: '（　）に入れるのに最もよいものを、1・2・3・4から一つえらびなさい。' },
+    4: { typeName: '問題4 유의 표현', instruction: '下線のことばに意味が最も近いものを、1・2・3・4から一つえらびなさい。' },
+    5: { typeName: '問題5 용법', instruction: '次のことばの使いかたとして最もよいものを、1・2・3・4から一つえらびなさい。' }
+  };
+  const EXAM_BLANK = '（　）';
+
+  // 검수 문항 작성 규칙: options[0]이 정답이며 출제 시 섞입니다.
+  // 問題3은 prompt에 （　）를 정확히 1개, 問題1·2·4는 밑줄 대상 【…】을 1개, 問題5는 prompt가 【단어】입니다.
+  const vq = (wordId, type, prompt, options) => ({ wordId, type, prompt, options, correctAnswerIndex: 0 });
+
   const verifiedQuestions = {
     'Day 1': [
-      {
-        wordId: 5,
-        type: 3,
-        typeName: '問題3 문맥 규정',
-        instruction: '（　）に入れるのに最もよいものを、1・2・3・4から一つえらびなさい。',
-        prompt: '貴重品はフロントで（　）しておりますので、ご安心ください。',
-        options: ['お預かりして', '諦めて', '明けて', '当たって'],
-        correctAnswerIndex: 0
-      },
-      {
-        wordId: 2,
-        type: 3,
-        typeName: '問題3 문맥 규정',
-        instruction: '（　）に入れるのに最もよいものを、1・2・3・4から一つえらびなさい。',
-        prompt: 'どんなに難しくても、途中で（　）はいけません。',
-        options: ['諦めて', '預かって', '明けて', '暖めて'],
-        correctAnswerIndex: 0
-      },
-      {
-        wordId: 6,
-        type: 3,
-        typeName: '問題3 문맥 규정',
-        instruction: '（　）に入れるのに最もよいものを、1・2・3・4から一つえらびなさい。',
-        prompt: '激しい運動をしたので、たくさん（　）をかきました。',
-        options: ['汗', '辺り', '相手', 'アイディア'],
-        correctAnswerIndex: 0
-      },
-      {
-        wordId: 1,
-        type: 4,
-        typeName: '問題4 유의 표현',
-        instruction: '下線のことばに意味が最も近いものを、1・2・3・4から一つえらびなさい。',
-        prompt: '何かいい【アイディア】はありませんか。',
-        options: ['考え', '約束', '理由', '都合'],
-        correctAnswerIndex: 0
-      },
-      {
-        wordId: 4,
-        type: 4,
-        typeName: '問題4 유의 표현',
-        instruction: '下線のことばに意味が最も近いものを、1・2・3・4から一つえらびなさい。',
-        prompt: 'このプールは子ども用なのでとても【浅い】です。',
-        options: ['深くない', '広くない', 'あたたかくない', '大きくない'],
-        correctAnswerIndex: 0
-      },
-      {
-        wordId: 0,
-        type: 5,
-        typeName: '問題5 용법',
-        instruction: '次のことばの使いかたとして最もよいものを、1・2・3・4から一つえらびなさい。',
-        prompt: '【相手】',
-        options: [
-          'テニスの練習の相手をしてくれた。',
-          '今日の天気は相手がよくありません。',
-          '図書館で相手の本をたくさん借りました。',
-          '部屋의 相手をきれいに片付けました。'
-        ],
-        correctAnswerIndex: 0
-      }
+      vq(5, 3, '貴重品はフロントで（　）おりますので、ご安心ください。', ['お預かりして', '諦めて', '明けて', '当たって']),
+      vq(2, 3, 'どんなに難しくても、途中で（　）はいけません。', ['諦めて', '預かって', '明けて', '暖めて']),
+      vq(6, 3, '激しい運動をしたので、たくさん（　）をかきました。', ['汗', '辺り', '相手', 'アイディア']),
+      vq(1, 4, '何かいい【アイディア】はありませんか。', ['考え', '約束', '理由', '都合']),
+      vq(4, 4, 'このプールは子ども用なのでとても【浅い】です。', ['深くない', '広くない', 'あたたかくない', '大きくない']),
+      vq(0, 5, '【相手】', [
+        'テニスの練習の相手をしてくれた。',
+        '今日の天気は相手がよくありません。',
+        '図書館で相手の本をたくさん借りました。',
+        '部屋の相手をきれいに片付けました。'
+      ])
+    ],
+    'Day 2': [
+      vq(17, 3, '台風の（　）で、電車が止まっている。', ['影響', '栄養', '営業', '延期']),
+      vq(6, 3, '（　）して、傘を電車に忘れてしまった。', ['うっかり', 'うろうろ', 'しっかり', 'ぴったり']),
+      vq(46, 4, 'そのニュースを聞いて、とても【驚いた】。', ['びっくりした', 'がっかりした', '安心した', '困った']),
+      vq(41, 5, '【惜しい】', [
+        'あと1点で勝てたのに、本当に惜しい試合だった。',
+        'この料理は惜しいので、もう一杯ください。',
+        '駅まで遠いので、歩くのは惜しいです。',
+        '彼はいつも惜しい服を着ている。'
+      ]),
+      vq(32, 1, '駅から会社まで、【往復】で一時間かかる。', ['おうふく', 'おおふく', 'おうぶく', 'おふく']),
+      vq(30, 2, 'みんなで日本チームを【おうえん】しました。', ['応援', '応媛', '央援', '応緩'])
+    ],
+    'Day 3': [
+      vq(13, 3, '話し合いをして、問題を（　）することができた。', ['解決', '改札', '回収', '過程']),
+      vq(44, 3, '楽しみにしていた旅行が中止になって、（　）した。', ['がっかり', 'うっかり', 'ぐらぐら', 'さらさら']),
+      vq(40, 4, '出かける前に、部屋を【片付けて】ください。', ['きれいにして', '暖かくして', '明るくして', '広くして']),
+      vq(34, 5, '【重ねる】', [
+        '使った皿は、ここに重ねて置いてください。',
+        '駅で友だちと重ねる約束をした。',
+        '寒いので、窓を重ねてください。',
+        '電話で母の声を重ねた。'
+      ]),
+      vq(14, 1, '【改札】の前で待ち合わせしましょう。', ['かいさつ', 'かいざつ', 'がいさつ', 'かいさく']),
+      vq(26, 2, '出かける前に【かがみ】で顔を見た。', ['鏡', '境', '鐘', '競'])
+    ],
+    'Day 4': [
+      vq(46, 3, '家から駅までの（　）は約2キロです。', ['距離', '間隔', '期限', '規則']),
+      vq(25, 3, 'この牛乳は、もう（　）が切れている。', ['期限', '期待', '記念', '許可']),
+      vq(21, 4, 'このテストは思ったより【簡単だった】。', ['やさしかった', 'むずかしかった', '長かった', 'つまらなかった']),
+      vq(34, 5, '【気付く】', [
+        '駅に着いてから、財布を忘れたことに気付いた。',
+        '毎朝7時に気付いて、学校へ行きます。',
+        '病気が気付いて、仕事に戻った。',
+        'このかばんは軽くて、とても気付きます。'
+      ]),
+      vq(13, 1, 'コンサートには大勢の【観客】が集まった。', ['かんきゃく', 'かんかく', 'かんぎゃく', 'けんきゃく']),
+      vq(14, 2, '【かんきょう】を守るために、ごみを減らそう。', ['環境', '環鏡', '還境', '完境'])
+    ],
+    'Day 5': [
+      vq(29, 3, '風邪をひいたので、今日の授業を（　）した。', ['欠席', '空席', '決心', '結局']),
+      vq(14, 3, '使い方については、説明書に（　）書いてあります。', ['詳しく', '苦しく', '臭く', '濃く']),
+      vq(5, 4, '一日中歩いて、【くたびれた】。', ['疲れた', '困った', '驚いた', '怒った']),
+      vq(7, 5, '【配る】', [
+        '受付で、参加者に資料を配った。',
+        '毎朝、犬を公園に配っている。',
+        '先生の話をよく配ってください。',
+        '机の上の本を棚に配った。'
+      ]),
+      vq(23, 1, '毎朝、【血圧】を測っている。', ['けつあつ', 'けつあく', 'ちあつ', 'けっあつ']),
+      vq(15, 2, '消防士は毎日きびしい【くんれん】をしている。', ['訓練', '訓錬', '訊練', '訓連'])
+    ],
+    'Day 6': [
+      vq(6, 3, '忙しかったので、友だちの誘いを（　）。', ['断った', '困った', '転んだ', '叫んだ']),
+      vq(28, 3, '新しいゲームを買ったので、（　）遊んでみた。', ['早速', '残念', '最中', '最新']),
+      vq(14, 4, '世界には【さまざま】な国がある。', ['いろいろ', '有名', 'きれい', '便利']),
+      vq(11, 5, '【転ぶ】', [
+        '雪の日に道で転んで、足をけがした。',
+        '電車が駅に転んで、ドアが開いた。',
+        'テストで悪い点を転んでしまった。',
+        '彼は会社を転んで、新しい仕事を始めた。'
+      ]),
+      vq(13, 1, '連休中の駅はとても【混雑】していた。', ['こんざつ', 'こんさつ', 'こうざつ', 'こんざい']),
+      vq(47, 2, '夕方になって、太陽が海に【しずむ】のが見えた。', ['沈む', '洗む', '浸む', '渋む'])
+    ],
+    'Day 7': [
+      vq(25, 3, '事故のせいで、高速道路が（　）している。', ['渋滞', '集団', '縮小', '周囲']),
+      vq(12, 3, '先生は会議中なので、（　）お待ちください。', ['しばらく', 'しっかり', 'さっそく', 'ずいぶん']),
+      vq(2, 4, '田中さんとは、学生のころから【親しい】。', ['仲がいい', '背が高い', '気が強い', '頭がいい']),
+      vq(0, 5, '【従う】', [
+        '係員の指示に従って、外に出てください。',
+        '暑いので、窓を従ってください。',
+        '彼は毎日日記を従っている。',
+        'この店のケーキはとても従っている。'
+      ]),
+      vq(18, 1, '彼は銀行から【借金】をして家を買った。', ['しゃっきん', 'しゃくきん', 'しゃきん', 'せっきん']),
+      vq(40, 2, '来週、大阪へ【しゅっちょう】に行きます。', ['出張', '出帳', '出長', '出脹'])
+    ],
+    'Day 8': [
+      vq(2, 3, '彼は（　）を言って、みんなを笑わせた。', ['冗談', '情報', '招待', '診断']),
+      vq(46, 3, '（　）作った料理なのに、だれも食べてくれなかった。', ['せっかく', 'ずいぶん', '少しも', 'すきずき']),
+      vq(16, 4, '学生たちは【真剣】に先生の話を聞いていた。', ['まじめ', '静か', '簡単', '自由']),
+      vq(23, 5, '【慎重】', [
+        '大事な書類なので、慎重に確認してください。',
+        '慎重が高いので、この服は小さい。',
+        '昨日は慎重に寝てしまった。',
+        'この料理は慎重で、とてもおいしい。'
+      ]),
+      vq(20, 1, 'この店の魚は、いつも【新鮮】です。', ['しんせん', 'しんぜん', 'しんせい', 'しんせつ']),
+      vq(41, 2, '今学期は【せいせき】が上がった。', ['成績', '成積', '正績', '成責'])
+    ],
+    'Day 9': [
+      vq(0, 3, '電気代を（　）するために、こまめに電気を消している。', ['節約', '宣伝', '想像', '測量']),
+      vq(17, 3, '赤ちゃんが寝ているので、（　）ドアを閉めた。', ['そっと', 'そっくり', 'そろそろ', 'だぶだぶ']),
+      vq(25, 4, '会議が長くて、【退屈だった】。', ['つまらなかった', '楽しかった', '忙しかった', 'うるさかった']),
+      vq(41, 5, '【頼む】', [
+        '友だちに引っ越しの手伝いを頼んだ。',
+        '毎朝、公園で頼んでいる。',
+        '新しい家は駅から頼んでいて便利だ。',
+        'テストに頼んだので、とてもうれしい。'
+      ]),
+      vq(22, 1, '父は来週【退院】する予定です。', ['たいいん', 'だいいん', 'たいえん', 'たいにん']),
+      vq(19, 2, '私は両親を【そんけい】しています。', ['尊敬', '尊警', '専敬', '尊驚'])
+    ],
+    'Day 10': [
+      vq(11, 3, '寝坊して、会社に（　）してしまった。', ['遅刻', '遅延', '駐車', '停電']),
+      vq(14, 3, 'この映画は、（　）おもしろくなかった。', ['ちっとも', 'ぜひ', 'かならず', 'どうぞ']),
+      vq(18, 4, '雨のため、試合は【中止】になった。', ['取りやめ', '延期', '開始', '変更']),
+      vq(38, 5, '【包む】', [
+        'プレゼントをきれいな紙で包んだ。',
+        '寒いので、エアコンを包んでください。',
+        '駅で友だちが来るのを包んでいた。',
+        '雨が包んで、道がぬれている。'
+      ]),
+      vq(6, 1, '大雪のため、電車に【遅延】が出ている。', ['ちえん', 'ちいん', 'ちえい', 'ちこく']),
+      vq(28, 2, '毎日、電車で【つうきん】しています。', ['通勤', '痛勤', '通勧', '通動'])
+    ],
+    'Day 11': [
+      vq(39, 3, '彼の説明を聞いて、やっと（　）できた。', ['納得', '特色', '登場', '動作']),
+      vq(46, 3, '明日は（　）早く来てください。', ['なるべく', '何度も', 'どきどき', 'どんどん']),
+      vq(16, 4, '【突然】雨が降り出した。', ['急に', 'やっと', 'ゆっくり', 'もう一度']),
+      vq(47, 5, '【慣れる】', [
+        '日本の生活にも、だいぶ慣れてきた。',
+        '雨で服が慣れてしまった。',
+        '毎朝7時に家を慣れます。',
+        'このパンは古くなって慣れている。'
+      ]),
+      vq(4, 1, '飛行機は予定どおり空港に【到着】した。', ['とうちゃく', 'とうじゃく', 'とちゃく', 'どうちゃく']),
+      vq(42, 2, '映画を見て、【なみだ】が出た。', ['涙', '波', '浪', '戻'])
+    ],
+    'Day 12': [
+      vq(41, 3, '忙しかったが、その仕事を（　）ことにした。', ['引き受ける', '引っ張る', '乗り換える', '話し合う']),
+      vq(44, 3, 'このくつは、私の足に（　）だ。', ['ぴったり', 'のろのろ', 'ばらばら', 'はっきり']),
+      vq(0, 4, '私は数学が【苦手です】。', ['得意ではありません', '大好きです', 'よくわかります', '必要です']),
+      vq(16, 5, '【延ばす】', [
+        '体調が悪いので、出発を一日延ばした。',
+        '髪を短く延ばしてください。',
+        '毎朝、公園を延ばしている。',
+        'このスープは塩を延ばすとおいしい。'
+      ]),
+      vq(9, 1, 'このかばんは【値段】が高い。', ['ねだん', 'ちだん', 'あたいだん', 'ねたん']),
+      vq(28, 2, '新しい星が【はっけん】された。', ['発見', '発検', '発験', '初見'])
+    ],
+    'Day 13': [
+      vq(30, 3, '会議の結果を部長に（　）した。', ['報告', '方角', '貿易', '募金']),
+      vq(23, 3, '彼女は英語が（　）だ。', ['ぺらぺら', 'ぶらぶら', 'ふらふら', 'まごまご']),
+      vq(22, 4, 'お会計は【別々】にお願いします。', ['一人ずつ', '全部', '一緒', 'あと']),
+      vq(36, 5, '【干す】', [
+        '天気がいいので、洗濯物を外に干した。',
+        'のどが干したので、水を飲んだ。',
+        '先生に宿題を干した。',
+        '毎朝、駅まで干して行く。'
+      ]),
+      vq(4, 1, '窓から見える【風景】がとても美しい。', ['ふうけい', 'ふけい', 'ふうげい', 'ふうけん']),
+      vq(6, 2, 'この川はとても【ふかい】です。', ['深い', '探い', '浅い', '深かい'])
+    ],
+    'Day 14': [
+      vq(24, 3, '夜遅くに大きな音を出すと、近所の人に（　）がかかる。', ['迷惑', '命令', '満足', '文句']),
+      vq(43, 3, '三時間待って、（　）バスが来た。', ['やっと', 'なるべく', 'ぜひ', 'けっして']),
+      vq(27, 4, 'こんなに暖かい冬は【珍しい】。', ['あまりない', 'よくある', '寒い', '長い']),
+      vq(36, 5, '【もったいない】', [
+        'まだ使えるのに捨てるなんて、もったいない。',
+        'もったいないので、早く病院へ行ってください。',
+        'この部屋はもったいなくて、何も見えない。',
+        '彼はもったいない声で歌を歌った。'
+      ]),
+      vq(13, 1, '船が【港】に着いた。', ['みなと', 'みずうみ', 'みさき', 'はま']),
+      vq(49, 2, '私たちのチームが大会で【ゆうしょう】した。', ['優勝', '優勢', '有勝', '優賞'])
+    ],
+    'Day 15': [
+      vq(32, 3, '空港で円をドルに（　）した。', ['両替', '留守', '予約', '用意']),
+      vq(35, 3, '昨日電話したけど、（　）だったね。', ['留守', '割引', '様子', '容器']),
+      vq(28, 4, 'エレベーターができて、上の階に行くのが【楽になった】。', ['簡単になった', '難しくなった', '遠くなった', '高くなった']),
+      vq(44, 5, '【沸く】', [
+        'お湯が沸いたら、お茶を入れましょう。',
+        '朝ご飯にパンを沸いて食べた。',
+        '寒いので、セーターを沸いて出かけた。',
+        '大きな声で友だちを沸いた。'
+      ]),
+      vq(19, 1, '東京に着いた【翌日】、京都へ行った。', ['よくじつ', 'よくひ', 'つぎじつ', 'よくにち']),
+      vq(33, 2, '会社に出すので、【りょうしゅうしょ】をください。', ['領収書', '領集書', '領収署', '量収書'])
     ]
   };
+
+  const HANGUL_RE = /[ᄀ-ᇿ㄰-㆏ꥠ-꥿가-힯ힰ-퟿]/;
+  const KANJI_RE = /[一-鿿々]/;
+  const HIRAGANA_ONLY_RE = /^[ぁ-ゖー]+$/;
+  const BLANK_VARIANT_RE = /[（(][ 　]*[）)]/g;
+
+  // 활용형 판별용 어간: 末尾 오쿠리가나(또는 だ)를 떼고, 전부 가나인 단어는 마지막 한 글자만 뗍니다.
+  function wordStem(word) {
+    const base = word.replace(/だ$/, '');
+    const stripped = base.replace(/[ぁ-ゖ]+$/, '');
+    if (stripped) return stripped;
+    return base.length >= 3 ? base.slice(0, -1) : base;
+  }
+
+  // 검수 문항 1개를 검사해 오류 메시지 배열을 돌려줍니다. 빈 배열이면 유효합니다.
+  function validateVerifiedQuestion(q, words) {
+    const errors = [];
+    const meta = EXAM_TYPES[q?.type];
+    if (!meta) return ['알 수 없는 문제 유형: ' + q?.type];
+    const target = Number.isInteger(q.wordId) ? words[q.wordId] : undefined;
+    if (!target) errors.push('wordId가 해당 일차 단어를 가리키지 않음: ' + q.wordId);
+
+    const prompt = typeof q.prompt === 'string' ? q.prompt : '';
+    if (!prompt.trim()) errors.push('prompt가 비어 있음');
+
+    const options = Array.isArray(q.options) ? q.options : [];
+    if (options.length !== 4) errors.push(`선택지가 4개가 아님(${options.length}개)`);
+    if (options.some(o => typeof o !== 'string' || !o.trim())) errors.push('비어 있거나 문자열이 아닌 선택지');
+    const normalized = options.map(o => String(o).trim());
+    if (new Set(normalized).size !== normalized.length) errors.push('중복 선택지');
+    const answer = q.correctAnswerIndex;
+    if (!Number.isInteger(answer) || answer < 0 || answer >= options.length) errors.push('정답 인덱스 범위 오류');
+
+    for (const text of [prompt, meta.instruction, ...normalized]) {
+      if (HANGUL_RE.test(text)) errors.push('일본어 문장에 한국어 혼입: ' + text);
+    }
+
+    const blanks = prompt.split(EXAM_BLANK).length - 1;
+    const blankLike = (prompt.match(BLANK_VARIANT_RE) || []).length;
+    const markers = [...prompt.matchAll(/【([^【】]+)】/g)].map(m => m[1]);
+    const stray = (prompt.match(/[【】]/g) || []).length !== markers.length * 2;
+    if (stray) errors.push('짝이 맞지 않는 【】');
+
+    if (q.type === 3) {
+      if (blanks !== 1 || blankLike !== 1) errors.push(`（　） 빈칸이 정확히 1개가 아님(${blankLike}개)`);
+      if (markers.length) errors.push('問題3에 【】 표식이 있음');
+    } else {
+      if (blankLike) errors.push('問題3 이외 유형에 （　） 빈칸이 있음');
+      if (markers.length !== 1) errors.push(`【】 표식이 정확히 1개가 아님(${markers.length}개)`);
+    }
+
+    if (target && !errors.length) {
+      const correct = normalized[answer];
+      const stem = wordStem(target.word);
+      const marker = markers[0];
+      if (q.type === 1) {
+        if (marker !== target.word) errors.push('問題1 표식이 단어 표기와 다름');
+        if (correct !== target.hiragana) errors.push('問題1 정답이 단어 읽기와 다름');
+        if (!normalized.every(o => HIRAGANA_ONLY_RE.test(o))) errors.push('問題1 선택지는 히라가나여야 함');
+      } else if (q.type === 2) {
+        if (marker !== target.hiragana) errors.push('問題2 표식이 단어 읽기와 다름');
+        if (correct !== target.word) errors.push('問題2 정답이 단어 표기와 다름');
+        if (!normalized.every(o => KANJI_RE.test(o))) errors.push('問題2 선택지는 한자를 포함해야 함');
+      } else if (q.type === 3) {
+        if (!correct.includes(stem)) errors.push('問題3 정답에 대상 단어가 없음');
+      } else if (q.type === 4) {
+        if (!marker.includes(stem)) errors.push('問題4 표식에 대상 단어가 없음');
+        if (normalized.some(o => o.includes(stem))) errors.push('問題4 선택지에 대상 단어가 그대로 있음');
+      } else if (q.type === 5) {
+        if (prompt !== '【' + target.word + '】') errors.push('問題5 prompt는 【단어】 형식이어야 함');
+        if (!normalized.every(o => o.includes(stem))) errors.push('問題5 모든 선택지에 대상 단어가 있어야 함');
+      }
+    }
+    return errors;
+  }
+
+  // 일차 전체 검사: 문항별 오류 + 같은 단어 중복 출제를 확인합니다.
+  function validateVerifiedDay(dayKey, words) {
+    const list = verifiedQuestions[dayKey] || [];
+    const problems = [];
+    const seen = new Set();
+    list.forEach((q, i) => {
+      for (const e of validateVerifiedQuestion(q, words)) problems.push(`${dayKey} #${i + 1}: ${e}`);
+      if (seen.has(q.wordId)) problems.push(`${dayKey} #${i + 1}: 같은 단어(wordId ${q.wordId}) 중복 출제`);
+      seen.add(q.wordId);
+    });
+    return problems;
+  }
 
   let activeExam = null;
   let examTargetDay = null;
@@ -8130,31 +8438,41 @@ const kanjiData = {
     }
   }
 
+  // 출제 가능한 단어 수: 한자 표기 단어 + 검증된 검수 문항의 대상 단어(가나 전용 단어 포함)
+  function examPoolSize(dayKey) {
+    const words = modes.vocab.data[dayKey] || [];
+    const ids = new Set(words.map((w, i) => (w.word !== w.hiragana ? i : -1)).filter(i => i >= 0));
+    for (const q of verifiedQuestions[dayKey] || []) {
+      if (!validateVerifiedQuestion(q, words).length) ids.add(q.wordId);
+    }
+    return ids.size;
+  }
+
   function buildExamQuestions(dayKey, targetCount = 20) {
     const words = modes.vocab.data[dayKey] || [];
     const eligibleKanji = words.map((w, idx) => ({ ...w, wordId: idx })).filter(w => w.word !== w.hiragana);
     const questions = [];
     const usedWordIds = new Set();
 
-    if (verifiedQuestions[dayKey]) {
-      for (const vq of verifiedQuestions[dayKey]) {
-        if (targetCount > 0 && questions.length >= targetCount) break;
-        const targetWord = words[vq.wordId];
-        const origOptions = [...vq.options];
-        const correctText = origOptions[vq.correctAnswerIndex];
-        const shuffled = [...origOptions].sort(() => Math.random() - 0.5);
-        questions.push({
-          wordId: vq.wordId,
-          type: vq.type,
-          typeName: vq.typeName,
-          instruction: vq.instruction,
-          prompt: vq.prompt,
-          options: shuffled,
-          correctAnswerIndex: shuffled.indexOf(correctText),
-          word: targetWord
-        });
-        usedWordIds.add(vq.wordId);
-      }
+    for (const vq of verifiedQuestions[dayKey] || []) {
+      if (targetCount > 0 && questions.length >= targetCount) break;
+      // 검증을 통과하지 못한 문항은 출제하지 않습니다(자동 생성 문항으로 대체).
+      if (usedWordIds.has(vq.wordId) || validateVerifiedQuestion(vq, words).length) continue;
+      const targetWord = words[vq.wordId];
+      const origOptions = [...vq.options];
+      const correctText = origOptions[vq.correctAnswerIndex];
+      const shuffled = [...origOptions].sort(() => Math.random() - 0.5);
+      questions.push({
+        wordId: vq.wordId,
+        type: vq.type,
+        typeName: EXAM_TYPES[vq.type].typeName,
+        instruction: EXAM_TYPES[vq.type].instruction,
+        prompt: vq.prompt,
+        options: shuffled,
+        correctAnswerIndex: shuffled.indexOf(correctText),
+        word: targetWord
+      });
+      usedWordIds.add(vq.wordId);
     }
 
     const remainingWords = eligibleKanji.filter(w => !usedWordIds.has(w.wordId));
@@ -8242,7 +8560,7 @@ const kanjiData = {
       li.className = 'day-entry';
 
       const row = document.createElement('div');
-      row.className = 'day';
+      row.className = 'day exam-day-row';
       row.style.cursor = 'default';
 
       const info = document.createElement('span');
@@ -8311,8 +8629,7 @@ const kanjiData = {
 
   function showExamModal(dayKey) {
     examTargetDay = dayKey;
-    const words = modes.vocab.data[dayKey] || [];
-    const eligibleCount = words.filter(w => w.word !== w.hiragana).length;
+    const eligibleCount = examPoolSize(dayKey);
     ui['exam-modal-title'].textContent = `${label(dayKey)} 모의시험`;
     ui['exam-modal-desc'].textContent = `출제할 문제 수를 선택해 주세요. (출제 가능: 최대 ${eligibleCount}문항)`;
     ui['exam-modal-standard'].textContent = `기본 시험 (${Math.min(20, eligibleCount)}문항)`;
@@ -8328,8 +8645,7 @@ const kanjiData = {
 
   function startExam(dayKey, modeType) {
     hideExamModal();
-    const words = modes.vocab.data[dayKey] || [];
-    const eligibleCount = words.filter(w => w.word !== w.hiragana).length;
+    const eligibleCount = examPoolSize(dayKey);
     const targetCount = modeType === 'standard' ? Math.min(20, eligibleCount) : eligibleCount;
     const questions = buildExamQuestions(dayKey, targetCount);
 
@@ -8351,6 +8667,22 @@ const kanjiData = {
     ui['exam-day-title'].focus();
   }
 
+  // 【…】 대상은 밑줄로, 問題5(용법)는 단어만 크게 보여 줍니다. 문장형 지문은 읽기용 크기로 줄입니다.
+  function renderExamStem(q) {
+    const stem = ui['exam-stem'];
+    const usage = q.type === 5;
+    const parts = usage ? [q.prompt.replace(/[【】]/g, '')] : q.prompt.split(/(【[^【】]+】)/).filter(Boolean);
+    const plain = parts.join('').replace(/[【】]/g, '');
+    stem.className = 'exam-stem japanese' + (!usage && plain.length > 8 ? ' sentence' : '');
+    stem.replaceChildren(...parts.map(part => {
+      const span = document.createElement('span');
+      const target = !usage && part.startsWith('【') && part.endsWith('】');
+      span.textContent = target ? part.slice(1, -1) : part;
+      if (target) span.className = 'exam-target';
+      return span;
+    }));
+  }
+
   function renderExamQuestion() {
     if (!activeExam) return;
     const q = activeExam.questions[activeExam.currentIndex];
@@ -8365,7 +8697,7 @@ const kanjiData = {
     ui['exam-progress'].max = total;
     ui['exam-progress'].value = current + 1;
     ui['exam-instruction'].textContent = q.instruction;
-    ui['exam-stem'].textContent = q.prompt;
+    renderExamStem(q);
 
     const frag = document.createDocumentFragment();
     q.options.forEach((optText, optIdx) => {
