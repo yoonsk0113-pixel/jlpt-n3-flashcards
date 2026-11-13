@@ -119,3 +119,28 @@ const every=boot(allDays);every.a.selectMode('vocab');
 for(let i=0;i<15;i++){every.a.openStudy('Day '+(i+1));assert.equal(every.n.get('study-word').textContent,'単語'+i);assert(every.n.get('study-next').disabled);}
 console.log('PASS: 15 study chapters, immediate details, optional fields, swipe directions/vertical/edges/cancel, buttons/keyboard/repeat guards, boundaries, separate position restore, no mastery writes.');
 
+// Data signatures: text corrections keep progress, legacy full-JSON signatures migrate, headword changes still reset.
+const words3=['相手','汗','浅い'].map((word,i)=>({...sample,word,meaning:'뜻'+i}));
+const typoOld=words3.map((w,i)=>i===1?{...w,meaning:'오타',explanation:'옛 설명'}:w);
+const legacyV2={version:2,signature:JSON.stringify(typoOld),mastery:['known','unknown','unseen'],queue:[0,1,2],index:2,revealed:false,review:false,done:false};
+const sig=boot({'Day 1':words3},new Map([['jlpt_vocab_v2_Day1',JSON.stringify(legacyV2)]]));sig.a.selectMode('vocab');sig.a.openDay('Day 1');
+assert.deepEqual(Array.from(sig.a.state.mastery),['known','unknown','unseen']);assert.equal(sig.a.state.index,2);assert.equal(sig.n.get('notice').textContent,'');
+sig.a.revealAnswer();sig.a.answer(true);
+const rewritten=JSON.parse(sig.storage.get('jlpt_vocab_v2_Day1'));assert.equal(rewritten.signature,'相手\n汗\n浅い');assert.deepEqual(rewritten.mastery,['known','unknown','known']);
+const sigReload=boot({'Day 1':words3.map(w=>({...w,explanation:'고친 설명'}))},sig.storage);sigReload.a.selectMode('vocab');sigReload.a.openDay('Day 1');
+assert.deepEqual(Array.from(sigReload.a.state.mastery),['known','unknown','known']);
+const legacyV1={version:1,signature:JSON.stringify(typoOld),round:1,queue:[0,1,2],index:1,unknown:[0],back:false,known:0,firstKnown:0,done:false};
+const sigV1=boot({'Day 1':words3},new Map([['jlpt_vocab_Day1',JSON.stringify(legacyV1)]]));sigV1.a.selectMode('vocab');sigV1.a.openDay('Day 1');
+assert.deepEqual(Array.from(sigV1.a.state.mastery),['unknown','unseen','unseen']);
+const renamed=boot({'Day 1':words3.map((w,i)=>i===2?{...w,word:'深い'}:w)},new Map([['jlpt_vocab_v2_Day1',JSON.stringify(legacyV2)]]));renamed.a.selectMode('vocab');renamed.a.openDay('Day 1');
+assert.equal(renamed.a.state.index,0);assert.match(renamed.n.get('notice').textContent,/새로 시작/);
+for(const bad of ['[broken',JSON.stringify({not:'a list'}),42]){
+ const t=boot({'Day 1':words3},new Map([['jlpt_vocab_v2_Day1',JSON.stringify({...legacyV2,signature:bad})]]));t.a.selectMode('vocab');t.a.openDay('Day 1');assert.equal(t.a.state.index,0);
+}
+const kanjiSrc=source.match(/const kanjiData = ([\s\S]*?\n});/)[1];const kanjiDay1=JSON.parse(kanjiSrc)['Day 1'];
+const kanjiOld=kanjiDay1.map((k,i)=>i===0?{...k,meaning:'옛 뜻'}:k);
+const legacyKanji={version:1,signature:JSON.stringify(kanjiOld),round:1,queue:kanjiDay1.map((_,i)=>i),index:2,unknown:[1],back:false,known:1,firstKnown:1,done:false};
+const kSig=boot(fixtures,new Map([['jlpt_kanji_Day1',JSON.stringify(legacyKanji)]]));kSig.a.selectMode('kanji');kSig.a.openDay('Day 1');
+assert.equal(kSig.a.state.index,2);assert.deepEqual(Array.from(kSig.a.state.unknown),[1]);
+kSig.a.answer(false);assert.equal(JSON.parse(kSig.storage.get('jlpt_kanji_Day1')).signature,kanjiDay1.map(k=>k.kanji).join('\n'));
+console.log('PASS: data signatures keep progress across text fixes, migrate legacy full-JSON signatures (vocab v1/v2, kanji), reset on headword change or malformed signature.');

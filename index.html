@@ -7593,6 +7593,16 @@ const kanjiData = {
   const label = key => /^Day\s*(\d+)$/i.test(key) ? key.match(/\d+/)[0] + '일차' : (days.indexOf(key) + 1) + '일차';
   const storageKey = key => 'jlpt_' + mode + (mode === 'vocab' ? '_v2_' : '_') + key.replace(/\s/g, '');
   const warn = message => { ui.notice.textContent = message; ui.notice.hidden = false; };
+  // Progress is keyed to the ordered headword list, so fixing a meaning, explanation or reading keeps it.
+  // shortcut: a corrected or reordered headword still resets that day; map by headword if that becomes common.
+  const daySignature = list => list.map(w => w[config.front]).join('\n');
+  // Records before this change stored the whole day as JSON; they match when their headwords do.
+  const sameDay = (signature, key) => {
+    if (signature === signatures.get(key)) return true;
+    if (typeof signature !== 'string' || !signature.startsWith('[')) return false;
+    try { const list = JSON.parse(signature); return Array.isArray(list) && daySignature(list) === signatures.get(key); }
+    catch { return false; }
+  };
   const validData = key => Array.isArray(data[key]) && data[key].length > 0 && data[key].every(w => w && typeof w[config.front] === 'string' && w[config.front].trim() && fields.every(([f]) => typeof w[f] === 'string'));
 
   function showHome(focus = true) {
@@ -7625,7 +7635,7 @@ const kanjiData = {
   function validState(s, key) {
     const n = data[key].length;
     const validIds = a => Array.isArray(a) && a.length > 0 && new Set(a).size === a.length && a.every(i => Number.isInteger(i) && i >= 0 && i < n);
-    if (!s || s.version !== 1 || s.signature !== signatures.get(key) || !validIds(s.queue) || !Array.isArray(s.unknown)) return false;
+    if (!s || s.version !== 1 || !sameDay(s.signature,key) || !validIds(s.queue) || !Array.isArray(s.unknown)) return false;
     if (![s.round,s.index,s.known,s.firstKnown].every(Number.isInteger) || s.round < 1 || s.index < 0 || s.index > s.queue.length || s.firstKnown < 0 || s.firstKnown > s.known || s.known > n) return false;
     if (typeof s.back !== 'boolean' || typeof s.done !== 'boolean' || new Set(s.unknown).size !== s.unknown.length) return false;
     const answered = s.index + Number(s.back);
@@ -7901,7 +7911,7 @@ const kanjiData = {
 
   function validVocab(s,key) {
     const n = data[key].length;
-    return s?.version === 2 && s.signature === signatures.get(key) &&
+    return s?.version === 2 && sameDay(s.signature,key) &&
       Array.isArray(s.mastery) && s.mastery.length === n && s.mastery.every(x => ['unseen','known','unknown'].includes(x)) &&
       Array.isArray(s.queue) && s.queue.length > 0 && new Set(s.queue).size === s.queue.length &&
       s.queue.every(x => Number.isInteger(x) && x >= 0 && x < n) &&
@@ -8011,7 +8021,7 @@ const kanjiData = {
   function loadProgress() {
   for (const key of days) {
     if (!validData(key)) continue;
-    signatures.set(key, JSON.stringify(data[key]));
+    signatures.set(key, daySignature(data[key]));
     try {
       // Read the legacy vocabulary record only when no new-mode record exists.
       const raw = localStorage.getItem(storageKey(key)) ?? (mode === 'vocab' ? (localStorage.getItem('jlpt_vocab_' + key.replace(/\s/g, '')) ?? localStorage.getItem('jlpt_state_' + key.replace(/\s/g, ''))) : null);
@@ -8019,10 +8029,11 @@ const kanjiData = {
       const s = JSON.parse(raw);
       if (mode === 'vocab') {
         const progress = validVocab(s,key) ? s : s.version === 1 ? migrateVocab(s,key) : null;
-        if (progress) saved.set(key,progress);
+        // The next save rewrites a legacy full-JSON signature in the short form.
+        if (progress) saved.set(key,{...progress,signature:signatures.get(key)});
         else warn('단어 데이터가 바뀌었거나 기록이 올바르지 않아 해당 일차를 새로 시작해요.');
       }
-      else if (validState(s,key)) saved.set(key,s);
+      else if (validState(s,key)) saved.set(key,{...s,signature:signatures.get(key)});
       else warn('단어 데이터가 바뀌었거나 저장된 기록이 올바르지 않아 해당 일차를 새로 시작해요.');
     } catch {
       warn('저장된 기록을 읽을 수 없어요. 브라우저 저장 설정을 확인해 주세요. 해당 일차는 새로 시작할 수 있어요.');
