@@ -21,9 +21,20 @@ const context = {
   matchMedia: () => ({ matches: true })
 };
 const code = source.replace('  showHome(false);',
-  '  globalThis.examData = {EXAM_TYPES,EXAM_BLANK,verifiedQuestions,validateVerifiedQuestion,validateVerifiedDay,examPoolSize,buildExamQuestions,describeOption,solvedPrompt,EXAM_BLANK,words:modes.vocab.data};');
+  '  globalThis.examData = {EXAM_TYPES,EXAM_BLANK,verifiedQuestions,validateVerifiedQuestion,examPoolSize,buildExamQuestions,describeOption,solvedPrompt,EXAM_BLANK,words:modes.vocab.data};');
 vm.runInNewContext(code, context);
-const { EXAM_TYPES, EXAM_BLANK, verifiedQuestions, validateVerifiedQuestion, validateVerifiedDay, examPoolSize, buildExamQuestions, describeOption, solvedPrompt, words } = context.examData;
+const { EXAM_TYPES, EXAM_BLANK, verifiedQuestions, validateVerifiedQuestion, examPoolSize, buildExamQuestions, describeOption, solvedPrompt, words } = context.examData;
+
+// 일차 전체 검사: 문항별 오류 + 같은 단어 중복 출제
+function validateVerifiedDay(dayKey, dayWords) {
+  const problems = [], seen = new Set();
+  (verifiedQuestions[dayKey] || []).forEach((q, i) => {
+    for (const e of validateVerifiedQuestion(q, dayWords)) problems.push(`${dayKey} #${i + 1}: ${e}`);
+    if (seen.has(q.wordId)) problems.push(`${dayKey} #${i + 1}: 같은 단어(wordId ${q.wordId}) 중복 출제`);
+    seen.add(q.wordId);
+  });
+  return problems;
+}
 
 // 1. 15개 DAY 모두 6문항, 유형 분배(문맥 규정 2·유의 1·용법 1·읽기/표기 2), 모든 검증 통과
 const problems = [];
@@ -78,12 +89,12 @@ delete verifiedQuestions['Day X'];
 assert(dupProblems.some(p => p.includes('중복 출제')), '같은 단어 중복 출제를 검출해야 함');
 console.log('PASS 2: 검증기가 한국어 혼입·빈칸 개수·선택지 수·중복·정답 불일치를 모두 검출.');
 
-// 3. 출제 엔진 통합: 검수 문항 6개가 모두 실제 시험에 포함되고, 전체 시험 문항 수가 출제 가능 수와 일치
+// 3. 출제 엔진 통합: 검수 문항 6개가 모두 20문항 시험에 포함되고, 출제 가능 문항 전체를 뽑아도 수와 단어가 맞음
 for (let d = 1; d <= 15; d++) {
   const key = 'Day ' + d;
   const prompts = new Set(verifiedQuestions[key].map(q => q.prompt));
   const q20 = buildExamQuestions(key, 20);
-  assert.equal(q20.filter(q => prompts.has(q.prompt)).length, 6, `${key}: 기본 시험에 검수 문항 6개 포함`);
+  assert.equal(q20.filter(q => prompts.has(q.prompt)).length, 6, `${key}: 20문항 시험에 검수 문항 6개 포함`);
   for (const q of q20.filter(q => prompts.has(q.prompt))) {
     assert.equal(q.typeName, EXAM_TYPES[q.type].typeName);
     assert.equal(q.options.length, 4);
@@ -91,10 +102,10 @@ for (let d = 1; d <= 15; d++) {
     assert(q.correctAnswerIndex >= 0 && q.correctAnswerIndex < 4, `${key}: 섞은 뒤 정답 인덱스 유지`);
   }
   const full = buildExamQuestions(key, examPoolSize(key));
-  assert.equal(full.length, examPoolSize(key), `${key}: 전체 시험 문항 수 = 출제 가능 수`);
-  assert.equal(new Set(full.map(q => q.wordId)).size, full.length, `${key}: 전체 시험에 같은 단어 중복 없음`);
+  assert.equal(full.length, examPoolSize(key), `${key}: 전체 출제 문항 수 = 출제 가능 수`);
+  assert.equal(new Set(full.map(q => q.wordId)).size, full.length, `${key}: 전체 출제에 같은 단어 중복 없음`);
 }
-console.log('PASS 3: 15개 DAY 기본/전체 시험에 검수 문항 반영, 문항 수와 단어 중복 확인.');
+console.log('PASS 3: 15개 DAY 20문항 시험·전체 출제에 검수 문항 반영, 문항 수와 단어 중복 확인.');
 // 4. 마크업 무결성: 스크립트가 참조하는 모든 id가 실제 HTML에 정확히 1개씩 존재 (모의 DOM은 없는 id도 만들어 주므로 별도 검사)
 const markup = html.slice(0, html.indexOf('<script>'));
 const declared = JSON.parse(source.match(/const ids = (\[[^\]]*\]);/)[1]);

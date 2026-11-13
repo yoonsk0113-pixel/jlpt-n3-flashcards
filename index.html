@@ -18,15 +18,13 @@
     body { margin:0; background:var(--paper); color:var(--ink); font-family:"Noto Sans KR","Apple SD Gothic Neo","Malgun Gothic",sans-serif; line-height:1.6; word-break:keep-all; overflow-wrap:anywhere; }
     ::selection { background:#d5e8d6; color:#183a29; }
     html { scrollbar-color:#abb4a6 var(--paper); }
-    button { font:inherit; cursor:pointer; color:inherit; -webkit-tap-highlight-color:transparent; touch-action:manipulation; }
+    button { font:inherit; cursor:pointer; color:inherit; -webkit-tap-highlight-color:transparent; touch-action:manipulation; transition:background-color .16s, transform .16s; }
     button:focus-visible, [tabindex="-1"]:focus-visible { outline:3px solid var(--green); outline-offset:5px; }
     button:disabled { opacity:.5; cursor:not-allowed; }
-    button { transition:background-color .16s, transform .16s; }
     button:active:not(:disabled) { transform:translateY(1px); }
     .app { max-width:600px; margin:auto; padding:28px 20px max(28px, env(safe-area-inset-bottom)); }
-    .brand { display:flex; align-items:center; gap:9px; font-weight:750; font-size:14px; padding-bottom:24px; border-bottom:1px solid var(--line); }
+    .brand { display:flex; align-items:center; gap:9px; font-weight:750; font-size:14px; padding-bottom:24px; border-bottom:1px solid var(--line); flex-wrap:wrap; }
     .brand svg { width:23px; height:23px; color:var(--green); }
-    .brand { flex-wrap:wrap; }
     .brand .back-link { margin-left:auto; color:var(--ink); padding:6px 0 6px 12px; }
     .mode-options { display:grid; gap:16px; }
     .mode-button { border:0; width:100%; text-align:left; border-radius:16px; padding:26px 24px; min-height:150px; }
@@ -71,7 +69,7 @@
     .day-status { color:var(--green); font-size:13px; font-weight:700; text-align:right; }
     .note { margin-top:26px; color:var(--muted); font-size:13px; }
     .back-link { border:0; padding:12px 0; background:none; font-size:14px; color:var(--muted); min-height:44px; }
-    .navigation { margin:16px 0 12px; }
+    .navigation { display:flex; justify-content:space-between; gap:16px; margin:16px 0 12px; }
     .round { border:1px solid #c5d2c1; color:var(--green); padding:4px 12px; border-radius:30px; font-size:13px; font-weight:700; white-space:nowrap; }
     .stats { display:grid; grid-template-columns:repeat(3,1fr); margin:25px 0 22px; }
     .stat { padding-left:18px; border-left:1px solid var(--line); }
@@ -100,7 +98,6 @@
     .vocab-card .details .key-answer { font-size:20px; font-weight:650; }
     .vocab-card.is-back .front { min-height:170px; padding:24px 20px; }
     .vocab-card.is-back .word { font-size:clamp(38px,10vw,58px); }
-    .navigation { display:flex; justify-content:space-between; gap:16px; }
     .assessment-status { color:var(--muted); font-size:12px; margin-top:14px; }
     .actions { display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-top:20px; }
     .action { min-height:56px; padding:14px 16px; border:0; border-radius:12px; font-weight:750; font-size:16px; }
@@ -143,8 +140,7 @@
     .exam-options { display:grid; gap:10px; list-style:none; padding:0; margin:0; }
     .exam-option-btn { width:100%; text-align:left; padding:15px 16px; border-radius:12px; border:2px solid var(--line); background:#fffefa; font-size:16px; font-weight:600; display:flex; align-items:center; gap:12px; }
     .exam-option-num { display:inline-flex; align-items:center; justify-content:center; width:26px; height:26px; border-radius:50%; background:#e8ebe4; font-size:13px; font-weight:750; flex-shrink:0; }
-    .exam-option-text { flex-grow:1; font-family:"Noto Sans JP","Hiragino Sans","Yu Gothic",sans-serif; }
-    .exam-option-text { word-break:normal; line-break:strict; }
+    .exam-option-text { flex-grow:1; font-family:"Noto Sans JP","Hiragino Sans","Yu Gothic",sans-serif; word-break:normal; line-break:strict; }
     .exam-option-btn.selected { border-color:#246347; background:#eaf5ee; color:#18442f; }
     .exam-option-btn.selected .exam-option-num { background:#246347; color:#fff; }
     @media (hover:hover) { .exam-option-btn:hover:not(.selected):not([aria-disabled="true"]) { background:#f5f6f2; border-color:#abb4a6; } }
@@ -8499,19 +8495,6 @@ const kanjiData = {
     return errors;
   }
 
-  // 일차 전체 검사: 문항별 오류 + 같은 단어 중복 출제를 확인합니다.
-  function validateVerifiedDay(dayKey, words) {
-    const list = verifiedQuestions[dayKey] || [];
-    const problems = [];
-    const seen = new Set();
-    list.forEach((q, i) => {
-      for (const e of validateVerifiedQuestion(q, words)) problems.push(`${dayKey} #${i + 1}: ${e}`);
-      if (seen.has(q.wordId)) problems.push(`${dayKey} #${i + 1}: 같은 단어(wordId ${q.wordId}) 중복 출제`);
-      seen.add(q.wordId);
-    });
-    return problems;
-  }
-
   let activeExam = null;
   let examTargetDay = null;
   let lastExamAttempt = null;
@@ -8734,6 +8717,7 @@ const kanjiData = {
   }
 
   const EXAM_SIZE = 20;
+  const ALL_VOCAB = Object.values(modes.vocab.data).flat();
   let examWrongOnly = false;
 
   const el = (tag, className, text) => {
@@ -8800,15 +8784,15 @@ const kanjiData = {
     if (index === q.correctAnswerIndex && q.type !== 4) return { word: q.word.word, reading: q.word.hiragana, meaning: q.word.meaning, base: q.type === 3 && text !== q.word.word };
     const gloss = EXAM_GLOSS[text];
     if (gloss) return { word: gloss[0], reading: gloss[1], meaning: gloss[2] };
-    const vocab = [...(modes.vocab.data[dayKey] || []), ...Object.values(modes.vocab.data).flat()];
-    const exact = vocab.find(w => w.word === text || w.hiragana === text);
+    const dayWords = modes.vocab.data[dayKey] || [];
+    const matches = w => w.word === text || w.hiragana === text;
+    const exact = dayWords.find(matches) ?? ALL_VOCAB.find(matches);
     if (exact) return { word: exact.word, reading: exact.hiragana, meaning: exact.meaning };
     if (q.type === 3 || q.type === 4) {
       const plain = text.replace(/^[おご](?=[一-鿿])/, '');
-      const stemOf = w => w.word.replace(/[ぁ-ゖ]+$/, '');
-      const base = vocab
-        .filter(w => /[うくぐすつぬぶむるい]$/.test(w.word) && KANJI_RE.test(stemOf(w)) && plain.startsWith(stemOf(w)))
-        .sort((a, b) => stemOf(b).length - stemOf(a).length)[0];
+      const base = [...dayWords, ...ALL_VOCAB]
+        .filter(w => /[うくぐすつぬぶむるい]$/.test(w.word) && KANJI_RE.test(wordStem(w.word)) && plain.startsWith(wordStem(w.word)))
+        .sort((a, b) => wordStem(b.word).length - wordStem(a.word).length)[0];
       if (base) return { word: base.word, reading: base.hiragana, meaning: base.meaning, base: true };
     }
     if (q.type === 1) return { note: '실제로 쓰지 않는 읽기예요. 장음·탁음·촉음을 바꾼 함정이에요.' };

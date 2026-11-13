@@ -64,7 +64,7 @@ function boot(storage = new Map(), confirmResponse = true) {
 
   let code = source.replace(
     '  showHome(false);',
-    '  globalThis.examTest = {openExamMenu,showExamModal,startExam,buildExamQuestions,renderExamQuestion,submitExam,showExamResult,toggleWrongOnly,chooseExamAnswer,moveExam,openExamReview,renderExamReviewCard,moveExamReview,loadExamHistory,saveExamAttempt,get activeExam(){return activeExam},get lastExamAttempt(){return lastExamAttempt},get examReviewWords(){return examReviewWords},get examReviewIndex(){return examReviewIndex},get view(){return view},get ui(){return ui}}; showHome(false);'
+    '  globalThis.examTest = {openExamMenu,startExam,buildExamQuestions,renderExamQuestion,submitExam,toggleWrongOnly,chooseExamAnswer,moveExam,openExamReview,moveExamReview,loadExamHistory,get activeExam(){return activeExam},get lastExamAttempt(){return lastExamAttempt},get examReviewWords(){return examReviewWords},get examReviewIndex(){return examReviewIndex},get view(){return view}}; showHome(false);'
   );
 
   let currentConfirm = () => confirmResponse;
