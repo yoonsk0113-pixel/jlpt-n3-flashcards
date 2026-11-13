@@ -53,7 +53,13 @@ node tests/exam-data-check.cjs
 
 ## 배포
 
-Vercel 프로젝트: jlpt-n3-flashcards. 읽기 학습 기능은 feature/chapter-study-cards 브랜치와 별도 Preview에서 검토합니다. Git 자동 배포 연동은 설정되어 있지 않습니다. 운영 배포와 병합은 별도 승인 후 진행합니다.
+Vercel 프로젝트 `jlpt-n3-flashcards`는 이 GitHub 저장소와 **Git 연동이 활성화**되어 있습니다.
+
+- `main` 브랜치에 푸시하면 운영(Production) 배포가 자동으로 실행됩니다: https://jlpt-n3-flashcards-three.vercel.app
+- 다른 브랜치에 푸시하면 해당 브랜치의 Preview 배포가 자동으로 만들어집니다.
+- 빌드 단계 없이 저장소 파일을 그대로 정적 배포합니다.
+
+`main` 병합이 곧 운영 배포이므로, 테스트 3개를 통과시킨 뒤 승인을 받아 병합합니다.
 
 ## 일차별 학습 초기화
 
