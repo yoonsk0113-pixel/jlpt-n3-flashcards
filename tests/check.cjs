@@ -28,10 +28,10 @@ assert.equal(a.state.mastery[0],'unknown');assert.equal(a.state.mastery[1],'unse
 a.revealAnswer();a.answer(true);a.previousCard();assert.equal(a.state.index,1);a.revealAnswer();a.answer(false);
 assert.equal(a.counts(a.state).assessed,2);assert.equal(a.counts(a.state).unknown,2);
 a.revealAnswer();a.answer(true);assert.equal(a.view,'result');assert.equal(a.state.index,3);
-a.startSession(true);assert.deepEqual(Array.from(a.state.queue),[0,1]);
+a.startSession(true);assert.deepEqual(Array.from(a.state.queue).sort(),[0,1]);const stillUnknown=a.state.queue[1];
 a.revealAnswer();a.answer(true);a.revealAnswer();a.answer(false);
 assert.equal(a.view,'result');assert.equal(a.counts(a.state).unknown,1);
-a.startSession(true);assert.deepEqual(Array.from(a.state.queue),[1]);a.revealAnswer();a.answer(true);
+a.startSession(true);assert.deepEqual(Array.from(a.state.queue),[stillUnknown]);a.revealAnswer();a.answer(true);
 assert.equal(a.counts(a.state).unknown,0);assert(x.n.get('review-unknown').disabled);
 a.startSession(true);assert.equal(a.view,'result');
 a.previousCard();assert.equal(a.state.index,0);a.revealAnswer();a.answer(false);
@@ -144,3 +144,15 @@ const kSig=boot(fixtures,new Map([['jlpt_kanji_Day1',JSON.stringify(legacyKanji)
 assert.equal(kSig.a.state.index,2);assert.deepEqual(Array.from(kSig.a.state.unknown),[1]);
 kSig.a.answer(false);assert.equal(JSON.parse(kSig.storage.get('jlpt_kanji_Day1')).signature,kanjiDay1.map(k=>k.kanji).join('\n'));
 console.log('PASS: data signatures keep progress across text fixes, migrate legacy full-JSON signatures (vocab v1/v2, kanji), reset on headword change or malformed signature.');
+
+// Unknown-word review: every pass reshuffles only the unknown words; the full restart keeps the original order.
+const many=Array.from({length:20},(_,i)=>({...sample,word:'語'+i}));
+const rv=boot({'Day 1':many});rv.a.selectMode('vocab');rv.a.openDay('Day 1');
+for(let i=0;i<20;i++){rv.a.revealAnswer();rv.a.answer(i%4===0);}
+const unknownIds=Array.from(rv.a.state.mastery).flatMap((m,i)=>m==='unknown'?[i]:[]);assert.equal(unknownIds.length,15);
+const orders=new Set();
+for(let k=0;k<10;k++){rv.a.startSession(true);const q=Array.from(rv.a.state.queue);assert.deepEqual([...q].sort((x,y)=>x-y),unknownIds);assert.equal(rv.a.state.index,0);orders.add(q.join());}
+assert(orders.size>1,'review order must change between passes');
+const resumed=boot({'Day 1':many},rv.storage);resumed.a.selectMode('vocab');resumed.a.openDay('Day 1');assert.equal(Array.from(resumed.a.state.queue).join(),[...orders].pop());
+rv.a.startSession(false);assert.deepEqual(Array.from(rv.a.state.queue),many.map((_,i)=>i));
+console.log('PASS: unknown-word review reshuffles every pass (same word set), reload resumes the saved order, full restart keeps original order.');
