@@ -156,3 +156,10 @@ assert(orders.size>1,'review order must change between passes');
 const resumed=boot({'Day 1':many},rv.storage);resumed.a.selectMode('vocab');resumed.a.openDay('Day 1');assert.equal(Array.from(resumed.a.state.queue).join(),[...orders].pop());
 rv.a.startSession(false);assert.deepEqual(Array.from(rv.a.state.queue),many.map((_,i)=>i));
 console.log('PASS: unknown-word review reshuffles every pass (same word set), reload resumes the saved order, full restart keeps original order.');
+// PWA: every precached file and manifest icon exists (one missing file makes cache.addAll fail the whole install).
+const root=path.join(__dirname,'..');const sw=fs.readFileSync(path.join(root,'service-worker.js'),'utf8');
+const assets=JSON.parse(sw.match(/const ASSETS = (\[[^\]]*\]);/)[1].replace(/'/g,'"'));
+const manifest=JSON.parse(fs.readFileSync(path.join(root,'manifest.webmanifest'),'utf8'));
+for(const f of [...assets.filter(a=>a!=='./'),...manifest.icons.map(i=>i.src)])assert(fs.existsSync(path.join(root,f)),'missing '+f);
+assert.equal(manifest.display,'standalone');assert(/manifest\.webmanifest/.test(fs.readFileSync(path.join(root,'index.html'),'utf8')));
+console.log('PASS: PWA precache list and manifest icons exist, standalone manifest linked.');

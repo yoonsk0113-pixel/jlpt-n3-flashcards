@@ -1,7 +1,7 @@
 {
   "id": "./",
-  "name": "매일 한 장 · 일본어 단어와 한자",
-  "short_name": "매일 한 장",
+  "name": "JLPT 어휘 시험",
+  "short_name": "JLPT 어휘",
   "description": "단어와 한자를 따로 기록하며 모르는 항목만 반복하는 일본어 학습장",
   "lang": "ko",
   "start_url": "./",

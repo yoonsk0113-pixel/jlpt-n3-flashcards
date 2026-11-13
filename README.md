@@ -51,6 +51,12 @@ node tests/exam-data-check.cjs
 6. **오답 단어 복습**: 시험에서 틀린 단어만 자동 추출하여 기존 정답 카드 형식(단어, 히라가나, 발음, 뜻, 한자 구성, 설명, 암기법)으로 카드를 좌우로 넘기며 복습합니다.
 7. 시험 이력은 `jlpt_exam_v1_DayN`에 누적 저장되어 Day 선택 화면에서도 이전 시험의 오답 복습으로 바로 진입할 수 있습니다.
 
+## 오프라인(PWA)
+
+- `manifest.webmanifest`(이름 「JLPT 어휘 시험」, `standalone`)로 홈 화면에 설치할 수 있습니다. 아이콘은 `icon-180.png`(iOS), `icon-192.png`, `icon-512.png`이며 같은 파일명으로 교체하면 됩니다.
+- `service-worker.js`가 앱 파일(학습 데이터·CSS·JS가 모두 들어 있는 `index.html`, manifest, 아이콘)을 미리 캐시합니다. 온라인에서는 네트워크 우선으로 최신 배포를 받아 캐시를 갱신하고, 오프라인에서는 캐시로 응답합니다.
+- 캐시할 파일 목록을 바꾸면 `CACHE` 이름의 버전 숫자를 올립니다. 서비스 워커는 HTTP(S)에서만 등록되며 `file://`로 열면 등록하지 않습니다.
+
 ## 배포
 
 Vercel 프로젝트 `jlpt-n3-flashcards`는 이 GitHub 저장소와 **Git 연동이 활성화**되어 있습니다.
