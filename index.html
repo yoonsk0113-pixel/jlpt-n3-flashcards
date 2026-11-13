@@ -147,19 +147,59 @@
     .exam-option-text { word-break:normal; line-break:strict; }
     .exam-option-btn.selected { border-color:#246347; background:#eaf5ee; color:#18442f; }
     .exam-option-btn.selected .exam-option-num { background:#246347; color:#fff; }
-    @media (hover:hover) { .exam-option-btn:hover:not(.selected) { background:#f5f6f2; border-color:#abb4a6; } }
+    @media (hover:hover) { .exam-option-btn:hover:not(.selected):not([aria-disabled="true"]) { background:#f5f6f2; border-color:#abb4a6; } }
     .exam-nav { display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-top:20px; }
     .exam-submit-btn { width:100%; margin-top:12px; }
     .exam-score-box { text-align:center; padding:28px 20px; background:#fffefa; border-radius:16px; border:1px solid var(--line); margin:20px 0; }
     .exam-score-percent { font-size:clamp(44px,12vw,64px); font-weight:800; color:var(--green); line-height:1.1; }
     .exam-score-percent.low { color:var(--red); }
     .exam-score-ratio { font-size:16px; color:var(--muted); margin-top:6px; font-weight:600; }
-    .exam-wrong-list { list-style:none; padding:0; margin:16px 0; display:grid; gap:10px; }
-    .exam-wrong-item { background:#fffefa; border-left:4px solid var(--red); border-radius:0 8px 8px 0; padding:12px 14px; font-size:14px; border-block:1px solid var(--line); border-right:1px solid var(--line); }
+    .exam-option-btn.correct { border-color:var(--green); background:#eaf5ee; color:#18442f; }
+    .exam-option-btn.wrong { border-color:var(--red); background:#f8ebe8; color:#7a2622; }
+    .exam-option-btn[aria-disabled="true"] { cursor:default; }
+    .exam-option-tag { flex-shrink:0; font-size:12px; font-weight:750; padding:2px 8px; border-radius:6px; color:#fff; background:var(--green); }
+    .exam-option-btn.wrong .exam-option-tag { background:var(--red); }
+    .exam-mode-choice { display:grid; gap:4px; text-align:left; padding:16px 18px; }
+    .exam-mode-choice strong { font-size:17px; }
+    .exam-mode-choice span { font-size:13px; font-weight:600; opacity:.88; }
+    .exam-feedback { margin-top:16px; padding:20px; background:#fffefa; border:1px solid var(--line); border-radius:16px; box-shadow:0 8px 24px #29372608; }
+    .exam-feedback-status { margin:0 0 14px; font-size:18px; font-weight:750; }
+    .exam-feedback-status.ok { color:var(--green); }
+    .exam-feedback-status.no { color:var(--red); }
+    .exam-breakdown { display:grid; gap:14px; font-size:14px; line-height:1.6; }
+    .exam-bd-context { padding:12px 14px; border-radius:10px; background:var(--paper); font-size:17px; line-height:1.75; line-break:strict; }
+    .exam-bd-word { display:flex; flex-wrap:wrap; align-items:baseline; gap:2px 10px; }
+    .exam-bd-word strong { font-size:22px; }
+    .exam-bd-reading { color:var(--green); font-weight:700; font-size:16px; }
+    .exam-bd-pron, .exam-bd-meaning { color:var(--muted); }
+    .exam-bd-meaning { flex-basis:100%; color:var(--ink); font-weight:600; }
+    .exam-bd-options { display:grid; gap:8px; margin:0; padding:0; list-style:none; }
+    .exam-bd-option { padding:10px 12px; border:1px solid var(--line); border-radius:10px; background:#fffefa; }
+    .exam-bd-option.correct { border-color:#9cc3ad; background:#f1f8f3; }
+    .exam-bd-option.picked-wrong { border-color:#dfb3ab; background:#fbf1ef; }
+    .exam-bd-head { display:flex; align-items:baseline; gap:8px; }
+    .exam-bd-num { flex-shrink:0; min-width:1.5em; color:var(--muted); font-weight:750; font-variant-numeric:tabular-nums; }
+    .exam-bd-text { flex-grow:1; font-weight:700; line-break:strict; }
+    .exam-bd-tag { flex-shrink:0; font-size:12px; font-weight:750; padding:1px 8px; border-radius:6px; }
+    .exam-bd-tag.ok { color:#18442f; background:#d9ecdf; }
+    .exam-bd-tag.no { color:#7a2622; background:#f1d9d4; }
+    .exam-bd-detail { margin:4px 0 0 calc(1.5em + 8px); color:var(--muted); font-size:13px; }
+    .exam-result-head { margin-top:36px; }
+    .exam-result-list { display:grid; gap:10px; margin:14px 0 28px; }
+    .exam-result-item { border:1px solid var(--line); border-radius:12px; background:#fffefa; }
+    .exam-result-item summary { display:flex; flex-wrap:wrap; align-items:center; gap:4px 10px; min-height:52px; padding:12px 44px 12px 16px; position:relative; cursor:pointer; list-style:none; }
+    .exam-result-item summary::-webkit-details-marker { display:none; }
+    .exam-result-item summary::after { content:""; position:absolute; right:20px; top:50%; width:8px; height:8px; border-right:2px solid var(--muted); border-bottom:2px solid var(--muted); transform:translateY(-70%) rotate(45deg); transition:transform .2s cubic-bezier(.16,1,.3,1); }
+    .exam-result-item[open] summary::after { transform:translateY(-20%) rotate(-135deg); }
+    .exam-result-item summary:focus-visible { outline:3px solid var(--green); outline-offset:2px; border-radius:12px; }
+    .exam-result-item > .exam-breakdown { padding:0 16px 16px; }
+    .exam-result-num { min-width:1.6em; color:var(--muted); font-weight:750; font-variant-numeric:tabular-nums; }
+    .exam-result-word { font-size:18px; font-weight:750; }
+    .exam-result-type { color:var(--muted); font-size:12px; }
+    .exam-result-badge { margin-left:auto; font-size:12px; font-weight:750; padding:2px 10px; border-radius:6px; }
+    .exam-result-badge.ok { color:#18442f; background:#d9ecdf; }
+    .exam-result-badge.no { color:#7a2622; background:#f1d9d4; }
     .exam-review-badge { display:inline-block; font-size:12px; font-weight:700; color:var(--red); background:#f4e3df; padding:4px 10px; border-radius:6px; margin:0 24px 12px; }
-    .exam-all-answer-item { background:#fffefa; border-radius:12px; border:1px solid var(--line); padding:16px; margin-bottom:12px; font-size:14px; }
-    .exam-all-answer-item.correct { border-left:4px solid var(--green); }
-    .exam-all-answer-item.wrong { border-left:4px solid var(--red); }
     .exam-empty-box { text-align:center; padding:40px 20px; background:#fffefa; border-radius:16px; border:1px solid var(--line); margin:20px 0; }
   </style>
 </head>
@@ -242,22 +282,25 @@
       <p id="exam-stem" class="exam-stem japanese" lang="ja"></p>
       <div id="exam-options" class="exam-options" role="radiogroup" aria-labelledby="exam-stem"></div>
     </div>
+    <section id="exam-feedback" class="exam-feedback" aria-labelledby="exam-feedback-status" hidden>
+      <h2 id="exam-feedback-status" class="exam-feedback-status" tabindex="-1"></h2>
+      <div id="exam-feedback-body"></div>
+    </section>
     <div class="exam-nav">
       <button id="exam-prev" class="action neutral" aria-keyshortcuts="ArrowLeft">← 이전 문제</button>
       <button id="exam-next" class="action neutral" aria-keyshortcuts="ArrowRight">다음 문제 →</button>
     </div>
     <button id="exam-submit" class="action primary full exam-submit-btn">답안 제출하기</button>
-    <p class="help">숫자 1~4: 선택지 고르기 · 좌우 화살표: 문제 이동</p>
+    <p class="help">숫자 1~4: 선택지 고르기 · 좌우 화살표: 문제 이동 · Enter: 다음 문제(한 문제씩)</p>
   </section>
   <section id="exam-result" class="result" hidden>
     <h1 id="exam-result-title" tabindex="-1"></h1><p id="exam-result-message"></p>
     <div class="exam-score-box"><div id="exam-score-percent" class="exam-score-percent"></div><div id="exam-score-ratio" class="exam-score-ratio"></div></div>
     <dl><div><dt>일차</dt><dd id="exam-result-day"></dd></div><div><dt>응시 일시</dt><dd id="exam-result-date"></dd></div><div><dt>총 문항</dt><dd id="exam-result-total"></dd></div><div><dt>맞힌 문항</dt><dd id="exam-result-correct"></dd></div><div><dt>틀린 단어</dt><dd id="exam-result-wrong"></dd></div></dl>
-    <div id="exam-wrong-container" hidden><div class="section-head"><h2>틀린 문제</h2></div><ul id="exam-wrong-list" class="exam-wrong-list"></ul></div>
-    <button id="exam-review-start" class="action primary full">오답 단어 복습</button>
-    <button id="exam-toggle-answers" class="action neutral full">전체 정답 확인</button>
-    <div id="exam-all-answers" hidden></div>
+    <button id="exam-review-start" class="action primary full">오답 단어 카드로 복습</button>
     <button id="exam-retake" class="action neutral full">다시 시험 보기</button>
+    <div class="section-head exam-result-head"><h2>문항별 해설</h2><button id="exam-toggle-answers" class="back-link" aria-pressed="false">틀린 문제만 보기</button></div>
+    <div id="exam-all-answers" class="exam-result-list"></div>
     <button id="exam-result-menu" class="action neutral full">시험 목록으로 돌아가기</button>
   </section>
   <section id="exam-review" hidden>
@@ -282,8 +325,8 @@
       <h2 id="exam-modal-title"></h2>
       <p id="exam-modal-desc" class="small"></p>
       <div class="exam-modal-actions">
-        <button id="exam-modal-standard" class="action primary full"></button>
-        <button id="exam-modal-full" class="action neutral full"></button>
+        <button id="exam-modal-step" class="action primary full exam-mode-choice"><strong>한 문제씩 풀기</strong><span>고르는 즉시 정답과 해설을 확인해요</span></button>
+        <button id="exam-modal-batch" class="action neutral full exam-mode-choice"><strong>한 번에 풀기</strong><span>끝까지 푼 뒤 마지막에 채점해요</span></button>
         <button id="exam-modal-cancel" class="back-link">취소</button>
       </div>
     </div>
@@ -7585,7 +7628,7 @@ const kanjiData = {
     kanji: { title:'한자 공부하기', short:'한자', data:kanjiData, front:'kanji', dayCount:10,
       fields:[['meaning','뜻'],['onyomi','음독'],['kunyomi','훈독'],['examples','대표 단어'],['mnemonic','암기법']] }
   };
-  const ids = ["study","study-back","study-title","study-position","study-progress","study-card","study-word","study-details","study-end","study-first","study-prev","study-next","study-bottom-position","reveal","previous","assessment-status","remaining-label","unknown-label","result-message","result-total-label","result-rounds-label","result-first-label","review-unknown","result-previous","restart","home","home-button","home-title","notice","menu","learning","result","days","day-summary","menu-title","day-title","round","remaining","known-count","unknown-count","position","round-hint","progress","card","word","details","unknown","known","next","keyboard-help","result-title","result-total","result-rounds","result-first","announcement","exam-mode","exam-menu","exam-menu-title","exam-day-summary","exam-days","exam","exam-back","exam-day-title","exam-type-badge","exam-position","exam-unanswered-count","exam-progress","exam-instruction","exam-stem","exam-options","exam-prev","exam-next","exam-submit","exam-result","exam-result-title","exam-result-message","exam-score-percent","exam-score-ratio","exam-result-day","exam-result-date","exam-result-total","exam-result-correct","exam-result-wrong","exam-wrong-container","exam-wrong-list","exam-review-start","exam-toggle-answers","exam-all-answers","exam-retake","exam-result-menu","exam-review","exam-review-back","exam-review-title","exam-review-position","exam-review-progress","exam-review-empty","exam-review-empty-back","exam-review-card","exam-review-badge","exam-review-word","exam-review-details","exam-review-end","exam-review-finish","exam-review-nav","exam-review-prev","exam-review-bottom-position","exam-review-next","exam-modal","exam-modal-title","exam-modal-desc","exam-modal-standard","exam-modal-full","exam-modal-cancel"];
+  const ids = ["study","study-back","study-title","study-position","study-progress","study-card","study-word","study-details","study-end","study-first","study-prev","study-next","study-bottom-position","reveal","previous","assessment-status","remaining-label","unknown-label","result-message","result-total-label","result-rounds-label","result-first-label","review-unknown","result-previous","restart","home","home-button","home-title","notice","menu","learning","result","days","day-summary","menu-title","day-title","round","remaining","known-count","unknown-count","position","round-hint","progress","card","word","details","unknown","known","next","keyboard-help","result-title","result-total","result-rounds","result-first","announcement","exam-mode","exam-menu","exam-menu-title","exam-day-summary","exam-days","exam","exam-back","exam-day-title","exam-type-badge","exam-position","exam-unanswered-count","exam-progress","exam-instruction","exam-stem","exam-options","exam-prev","exam-next","exam-submit","exam-result","exam-result-title","exam-result-message","exam-score-percent","exam-score-ratio","exam-result-day","exam-result-date","exam-result-total","exam-result-correct","exam-result-wrong","exam-review-start","exam-toggle-answers","exam-all-answers","exam-retake","exam-result-menu","exam-review","exam-review-back","exam-review-title","exam-review-position","exam-review-progress","exam-review-empty","exam-review-empty-back","exam-review-card","exam-review-badge","exam-review-word","exam-review-details","exam-review-end","exam-review-finish","exam-review-nav","exam-review-prev","exam-review-bottom-position","exam-review-next","exam-modal","exam-modal-title","exam-modal-desc","exam-modal-step","exam-modal-batch","exam-feedback","exam-feedback-status","exam-feedback-body","exam-modal-cancel"];
   const ui = Object.fromEntries(ids.map(id => [id, document.getElementById(id)]));
   let mode = null, config = null, data = {}, days = [], fields = [];
   let saved = new Map(), signatures = new Map();
@@ -7833,28 +7876,13 @@ const kanjiData = {
     if (view === 'exam') {
       if (['1', '2', '3', '4'].includes(event.key)) {
         event.preventDefault();
-        const optIdx = parseInt(event.key, 10) - 1;
-        if (activeExam && activeExam.questions[activeExam.currentIndex]?.options[optIdx] !== undefined) {
-          activeExam.userAnswers[activeExam.currentIndex] = optIdx;
-          renderExamQuestion();
-        }
-        return;
-      }
-      if (event.key === 'ArrowLeft') {
+        chooseExamAnswer(Number(event.key) - 1);
+      } else if (event.key === 'ArrowLeft' || event.key === 'ArrowRight') {
         event.preventDefault();
-        if (activeExam && activeExam.currentIndex > 0) {
-          activeExam.currentIndex--;
-          renderExamQuestion();
-        }
-        return;
-      }
-      if (event.key === 'ArrowRight') {
+        moveExam(event.key === 'ArrowRight' ? 1 : -1);
+      } else if (event.key === 'Enter' && event.target.tagName !== 'BUTTON' && activeExam?.mode === 'step' && activeExam.userAnswers[activeExam.currentIndex] !== -1) {
         event.preventDefault();
-        if (activeExam && activeExam.currentIndex < activeExam.questions.length - 1) {
-          activeExam.currentIndex++;
-          renderExamQuestion();
-        }
-        return;
+        if (!moveExam(1)) submitExam();
       }
       return;
     }
@@ -8112,10 +8140,76 @@ const kanjiData = {
     5: { typeName: '問題5 용법', instruction: '次のことばの使いかたとして最もよいものを、1・2・3・4から一つえらびなさい。' }
   };
   const EXAM_BLANK = '（　）';
+  // 단어장에 없는 선지(또는 원형 연결이 틀리는 활용형)의 [표기, 읽기, 뜻]. 결과 해설에서 단어장보다 먼저 찾습니다.
+  const EXAM_GLOSS = {
+    '暖めて': ['暖めて', 'あたためて', '데워서 (暖める: 데우다)'],
+    '明るくして': ['明るくして', 'あかるくして', '밝게 해서'],
+    '急に': ['急に', 'きゅうに', '갑자기'],
+    'ぜひ': ['ぜひ', 'ぜひ', '꼭, 부디 (바람·권유)'],
+    'どうぞ': ['どうぞ', 'どうぞ', '부디, 어서 (권유)'],
+    'けっして': ['決して', 'けっして', '결코 (부정과 함께)'],
+    '考え': ['考え', 'かんがえ', '생각'],
+    '約束': ['約束', 'やくそく', '약속'],
+    '広くない': ['広くない', 'ひろくない', '넓지 않다'],
+    'あたたかくない': ['暖かくない', 'あたたかくない', '따뜻하지 않다'],
+    '大きくない': ['大きくない', 'おおきくない', '크지 않다'],
+    'びっくりした': ['びっくりした', 'びっくりした', '깜짝 놀랐다'],
+    'がっかりした': ['がっかりした', 'がっかりした', '실망했다'],
+    '安心した': ['安心した', 'あんしんした', '안심했다'],
+    'きれいにして': ['きれいにして', 'きれいにして', '깨끗하게 해서'],
+    '広くして': ['広くして', 'ひろくして', '넓게 해서'],
+    'やさしかった': ['易しかった', 'やさしかった', '쉬웠다'],
+    'むずかしかった': ['難しかった', 'むずかしかった', '어려웠다'],
+    '長かった': ['長かった', 'ながかった', '길었다'],
+    'つまらなかった': ['つまらなかった', 'つまらなかった', '지루했다, 재미없었다'],
+    'いろいろ': ['色々', 'いろいろ', '여러 가지'],
+    'きれい': ['綺麗', 'きれい', '예쁨, 깨끗함'],
+    '便利': ['便利', 'べんり', '편리함'],
+    '仲がいい': ['仲がいい', 'なかがいい', '사이가 좋다'],
+    '背が高い': ['背が高い', 'せがたかい', '키가 크다'],
+    '気が強い': ['気が強い', 'きがつよい', '기가 세다'],
+    '頭がいい': ['頭がいい', 'あたまがいい', '머리가 좋다'],
+    'まじめ': ['真面目', 'まじめ', '성실함, 진지함'],
+    '静か': ['静か', 'しずか', '조용함'],
+    '簡単': ['簡単', 'かんたん', '간단함'],
+    '自由': ['自由', 'じゆう', '자유'],
+    '忙しかった': ['忙しかった', 'いそがしかった', '바빴다'],
+    'うるさかった': ['うるさかった', 'うるさかった', '시끄러웠다'],
+    '取りやめ': ['取りやめ', 'とりやめ', '중지, 취소'],
+    '開始': ['開始', 'かいし', '개시, 시작'],
+    'ゆっくり': ['ゆっくり', 'ゆっくり', '천천히'],
+    'もう一度': ['もう一度', 'もういちど', '한 번 더'],
+    '得意ではありません': ['得意ではありません', 'とくいではありません', '잘하지 못합니다'],
+    '大好きです': ['大好きです', 'だいすきです', '아주 좋아합니다'],
+    'よくわかります': ['よく分かります', 'よくわかります', '잘 압니다'],
+    '必要です': ['必要です', 'ひつようです', '필요합니다'],
+    '一人ずつ': ['一人ずつ', 'ひとりずつ', '한 사람씩'],
+    '一緒': ['一緒', 'いっしょ', '함께'],
+    'あと': ['後', 'あと', '나중, 뒤'],
+    'あまりない': ['あまりない', 'あまりない', '그다지 없다, 드물다'],
+    'よくある': ['よくある', 'よくある', '흔히 있다'],
+    '寒い': ['寒い', 'さむい', '춥다'],
+    '長い': ['長い', 'ながい', '길다'],
+    '簡単になった': ['簡単になった', 'かんたんになった', '쉬워졌다'],
+    '難しくなった': ['難しくなった', 'むずかしくなった', '어려워졌다'],
+    '遠くなった': ['遠くなった', 'とおくなった', '멀어졌다'],
+    '高くなった': ['高くなった', 'たかくなった', '높아졌다, 비싸졌다'],
+    'しんせつ': ['親切', 'しんせつ', '친절함'],
+    'みさき': ['岬', 'みさき', '곶'],
+    'はま': ['浜', 'はま', '바닷가'],
+    '境': ['境', 'さかい', '경계'],
+    '鐘': ['鐘', 'かね', '종'],
+    '競': ['競う', 'きそう', '겨루다'],
+    '浪': ['浪', 'なみ', '물결 (주로 한자어에 쓰임)'],
+    '戻': ['戻る', 'もどる', '되돌아가다'],
+    '優勢': ['優勢', 'ゆうせい', '우세'],
+    '初見': ['初見', 'しょけん', '처음 봄']
+  };
 
   // 검수 문항 작성 규칙: options[0]이 정답이며 출제 시 섞입니다.
   // 問題3은 prompt에 （　）를 정확히 1개, 問題1·2·4는 밑줄 대상 【…】을 1개, 問題5는 prompt가 【단어】입니다.
-  const vq = (wordId, type, prompt, options) => ({ wordId, type, prompt, options, correctAnswerIndex: 0 });
+  // 問題5는 notes[i]에 선지별 해설(한국어)을 둡니다. 선지와 함께 섞입니다.
+  const vq = (wordId, type, prompt, options, notes) => ({ wordId, type, prompt, options, correctAnswerIndex: 0, ...(notes && { notes }) });
 
   const verifiedQuestions = {
     'Day 1': [
@@ -8129,7 +8223,7 @@ const kanjiData = {
         '今日の天気は相手がよくありません。',
         '図書館で相手の本をたくさん借りました。',
         '部屋の相手をきれいに片付けました。'
-      ])
+      ], ['상대방이라는 뜻으로 바르게 쓰였어요.', '날씨 상태에는 「調子(ちょうし)」를 써요. 相手는 사람·상대편에만 써요.', '책의 종류를 말하려면 「いろいろな本」이 자연스러워요. 相手는 사람에게 써요.', '공간에는 「部屋の中」를 써요. 相手는 장소나 사물에 쓰지 않아요.'])
     ],
     'Day 2': [
       vq(17, 3, '台風の（　）で、電車が止まっている。', ['影響', '栄養', '営業', '延期']),
@@ -8140,7 +8234,7 @@ const kanjiData = {
         'この料理は惜しいので、もう一杯ください。',
         '駅まで遠いので、歩くのは惜しいです。',
         '彼はいつも惜しい服を着ている。'
-      ]),
+      ], ['아깝게 놓친 상황(아쉽다)에 바르게 쓰였어요.', '맛있다는 「おいしい」예요. 惜しい는 「아깝다·아쉽다」예요.', '힘들다는 「大変だ・つらい」가 자연스러워요.', '옷의 모양에는 「おしゃれな」 등을 써요.']),
       vq(32, 1, '駅から会社まで、【往復】で一時間かかる。', ['おうふく', 'おおふく', 'おうぶく', 'おふく']),
       vq(30, 2, 'みんなで日本チームを【おうえん】しました。', ['応援', '応媛', '央援', '応緩'])
     ],
@@ -8153,7 +8247,7 @@ const kanjiData = {
         '駅で友だちと重ねる約束をした。',
         '寒いので、窓を重ねてください。',
         '電話で母の声を重ねた。'
-      ]),
+      ], ['물건을 포개어 쌓는다는 뜻으로 바르게 쓰였어요.', '만나기로 한 약속은 「会う約束」예요.', '창문은 「閉める(しめる)」를 써요.', '목소리는 「聞く(きく)」를 써요.']),
       vq(14, 1, '【改札】の前で待ち合わせしましょう。', ['かいさつ', 'かいざつ', 'がいさつ', 'かいさく']),
       vq(26, 2, '出かける前に【かがみ】で顔を見た。', ['鏡', '境', '鐘', '競'])
     ],
@@ -8166,7 +8260,7 @@ const kanjiData = {
         '毎朝7時に気付いて、学校へ行きます。',
         '病気が気付いて、仕事に戻った。',
         'このかばんは軽くて、とても気付きます。'
-      ]),
+      ], ['몰랐던 사실을 알아차린다는 뜻으로 바르게 쓰였어요.', '잠에서 깨는 것은 「起きる(おきる)」예요.', '병이 낫는 것은 「治る(なおる)」예요.', '주어가 물건이면 「便利だ」 등을 써요. 気付く의 주어는 사람이에요.']),
       vq(13, 1, 'コンサートには大勢の【観客】が集まった。', ['かんきゃく', 'かんかく', 'かんぎゃく', 'けんきゃく']),
       vq(14, 2, '【かんきょう】を守るために、ごみを減らそう。', ['環境', '環鏡', '還境', '完境'])
     ],
@@ -8179,7 +8273,7 @@ const kanjiData = {
         '毎朝、犬を公園に配っている。',
         '先生の話をよく配ってください。',
         '机の上の本を棚に配った。'
-      ]),
+      ], ['여러 사람에게 나눠 준다는 뜻으로 바르게 쓰였어요.', '개를 데려가는 것은 「連れて行く(つれていく)」예요.', '말을 듣는 것은 「聞く(きく)」예요.', '책을 늘어놓는 것은 「並べる(ならべる)」예요.']),
       vq(23, 1, '毎朝、【血圧】を測っている。', ['けつあつ', 'けつあく', 'ちあつ', 'けっあつ']),
       vq(15, 2, '消防士は毎日きびしい【くんれん】をしている。', ['訓練', '訓錬', '訊練', '訓連'])
     ],
@@ -8192,7 +8286,7 @@ const kanjiData = {
         '電車が駅に転んで、ドアが開いた。',
         'テストで悪い点を転んでしまった。',
         '彼は会社を転んで、新しい仕事を始めた。'
-      ]),
+      ], ['사람이 넘어진다는 뜻으로 바르게 쓰였어요.', '전철이 도착하는 것은 「着く(つく)」예요.', '점수를 받는 것은 「取る(とる)」예요.', '회사를 그만두는 것은 「辞める(やめる)」예요.']),
       vq(13, 1, '連休中の駅はとても【混雑】していた。', ['こんざつ', 'こんさつ', 'こうざつ', 'こんざい']),
       vq(47, 2, '夕方になって、太陽が海に【しずむ】のが見えた。', ['沈む', '洗む', '浸む', '渋む'])
     ],
@@ -8205,7 +8299,7 @@ const kanjiData = {
         '暑いので、窓を従ってください。',
         '彼は毎日日記を従っている。',
         'この店のケーキはとても従っている。'
-      ]),
+      ], ['규칙·지시를 따른다는 뜻으로 바르게 쓰였어요.', '창문을 여는 것은 「開ける(あける)」예요.', '일기를 쓰는 것은 「日記をつける」예요.', '맛을 말할 때는 「おいしい」 등을 써요.']),
       vq(18, 1, '彼は銀行から【借金】をして家を買った。', ['しゃっきん', 'しゃくきん', 'しゃきん', 'せっきん']),
       vq(40, 2, '来週、大阪へ【しゅっちょう】に行きます。', ['出張', '出帳', '出長', '出脹'])
     ],
@@ -8218,7 +8312,7 @@ const kanjiData = {
         '慎重が高いので、この服は小さい。',
         '昨日は慎重に寝てしまった。',
         'この料理は慎重で、とてもおいしい。'
-      ]),
+      ], ['조심스럽게 확인한다는 뜻으로 바르게 쓰였어요.', '키는 같은 읽기의 「身長(しんちょう)」예요.', '일찍 자는 것은 「早く寝る」예요.', '음식이 신선한 것은 「新鮮(しんせん)」이에요.']),
       vq(20, 1, 'この店の魚は、いつも【新鮮】です。', ['しんせん', 'しんぜん', 'しんせい', 'しんせつ']),
       vq(41, 2, '今学期は【せいせき】が上がった。', ['成績', '成積', '正績', '成責'])
     ],
@@ -8231,7 +8325,7 @@ const kanjiData = {
         '毎朝、公園で頼んでいる。',
         '新しい家は駅から頼んでいて便利だ。',
         'テストに頼んだので、とてもうれしい。'
-      ]),
+      ], ['남에게 부탁한다는 뜻으로 바르게 쓰였어요.', '공원에서 하는 운동은 「走る・散歩する」 등을 써요.', '역에서 가까운 것은 「近い(ちかい)」예요.', '시험에 붙는 것은 「受かる(うかる)」예요.']),
       vq(22, 1, '父は来週【退院】する予定です。', ['たいいん', 'だいいん', 'たいえん', 'たいにん']),
       vq(19, 2, '私は両親を【そんけい】しています。', ['尊敬', '尊警', '専敬', '尊驚'])
     ],
@@ -8244,7 +8338,7 @@ const kanjiData = {
         '寒いので、エアコンを包んでください。',
         '駅で友だちが来るのを包んでいた。',
         '雨が包んで、道がぬれている。'
-      ]),
+      ], ['종이로 감싼다는 뜻으로 바르게 쓰였어요.', '에어컨을 켜는 것은 「つける」예요.', '친구를 기다리는 것은 「待つ(まつ)」예요.', '비가 오는 것은 「降る(ふる)」예요.']),
       vq(6, 1, '大雪のため、電車に【遅延】が出ている。', ['ちえん', 'ちいん', 'ちえい', 'ちこく']),
       vq(28, 2, '毎日、電車で【つうきん】しています。', ['通勤', '痛勤', '通勧', '通動'])
     ],
@@ -8257,7 +8351,7 @@ const kanjiData = {
         '雨で服が慣れてしまった。',
         '毎朝7時に家を慣れます。',
         'このパンは古くなって慣れている。'
-      ]),
+      ], ['생활에 익숙해진다는 뜻으로 바르게 쓰였어요.', '옷이 젖는 것은 「濡れる(ぬれる)」예요.', '집을 나서는 것은 「出る(でる)」예요.', '빵이 딱딱해지는 것은 「固くなる」예요.']),
       vq(4, 1, '飛行機は予定どおり空港に【到着】した。', ['とうちゃく', 'とうじゃく', 'とちゃく', 'どうちゃく']),
       vq(42, 2, '映画を見て、【なみだ】が出た。', ['涙', '波', '浪', '戻'])
     ],
@@ -8270,7 +8364,7 @@ const kanjiData = {
         '髪を短く延ばしてください。',
         '毎朝、公園を延ばしている。',
         'このスープは塩を延ばすとおいしい。'
-      ]),
+      ], ['일정을 늦춘다(연기한다)는 뜻으로 바르게 쓰였어요.', '짧게 자르는 것은 「切る(きる)」예요. 머리를 기르는 것은 「伸ばす」로 써요.', '공원을 달리는 것은 「走る(はしる)」예요.', '소금을 넣는 것은 「加える(くわえる)・入れる」예요.']),
       vq(9, 1, 'このかばんは【値段】が高い。', ['ねだん', 'ちだん', 'あたいだん', 'ねたん']),
       vq(28, 2, '新しい星が【はっけん】された。', ['発見', '発検', '発験', '初見'])
     ],
@@ -8283,7 +8377,7 @@ const kanjiData = {
         'のどが干したので、水を飲んだ。',
         '先生に宿題を干した。',
         '毎朝、駅まで干して行く。'
-      ]),
+      ], ['빨래를 햇볕에 말린다는 뜻으로 바르게 쓰였어요.', '목이 마른 것은 「渇く(かわく)」예요.', '숙제를 내는 것은 「出す(だす)」예요.', '걸어가는 것은 「歩く(あるく)」예요.']),
       vq(4, 1, '窓から見える【風景】がとても美しい。', ['ふうけい', 'ふけい', 'ふうげい', 'ふうけん']),
       vq(6, 2, 'この川はとても【ふかい】です。', ['深い', '探い', '浅い', '深かい'])
     ],
@@ -8296,7 +8390,7 @@ const kanjiData = {
         'もったいないので、早く病院へ行ってください。',
         'この部屋はもったいなくて、何も見えない。',
         '彼はもったいない声で歌を歌った。'
-      ]),
+      ], ['아직 쓸 수 있는데 버려서 아깝다는 뜻으로 바르게 쓰였어요.', '걱정될 때는 「心配だ・危ない」를 써요.', '어두운 것은 「暗い(くらい)」예요.', '목소리에는 「きれいな・大きな」 등을 써요.']),
       vq(13, 1, '船が【港】に着いた。', ['みなと', 'みずうみ', 'みさき', 'はま']),
       vq(49, 2, '私たちのチームが大会で【ゆうしょう】した。', ['優勝', '優勢', '有勝', '優賞'])
     ],
@@ -8309,7 +8403,7 @@ const kanjiData = {
         '朝ご飯にパンを沸いて食べた。',
         '寒いので、セーターを沸いて出かけた。',
         '大きな声で友だちを沸いた。'
-      ]),
+      ], ['물이 끓는다는 뜻으로 바르게 쓰였어요.', '빵을 굽는 것은 「焼く(やく)」예요.', '스웨터를 입는 것은 「着る(きる)」예요.', '친구를 부르는 것은 「呼ぶ(よぶ)」예요.']),
       vq(19, 1, '東京に着いた【翌日】、京都へ行った。', ['よくじつ', 'よくひ', 'つぎじつ', 'よくにち']),
       vq(33, 2, '会社に出すので、【りょうしゅうしょ】をください。', ['領収書', '領集書', '領収署', '量収書'])
     ]
@@ -8346,6 +8440,8 @@ const kanjiData = {
     if (new Set(normalized).size !== normalized.length) errors.push('중복 선택지');
     const answer = q.correctAnswerIndex;
     if (!Number.isInteger(answer) || answer < 0 || answer >= options.length) errors.push('정답 인덱스 범위 오류');
+    if (q.notes !== undefined && (!Array.isArray(q.notes) || q.notes.length !== options.length || q.notes.some(n => typeof n !== 'string' || !n.trim()))) errors.push('notes는 선지마다 해설 문자열이 있어야 함');
+    if (q.type === 5 && !q.notes) errors.push('問題5에는 선지별 해설(notes)이 필요함');
 
     for (const text of [prompt, meta.instruction, ...normalized]) {
       if (HANGUL_RE.test(text)) errors.push('일본어 문장에 한국어 혼입: ' + text);
@@ -8406,7 +8502,6 @@ const kanjiData = {
   let activeExam = null;
   let examTargetDay = null;
   let lastExamAttempt = null;
-  let lastExamWrongQuestions = [];
   let examReviewWords = [];
   let examReviewDay = null;
   let examReviewIndex = 0;
@@ -8458,25 +8553,23 @@ const kanjiData = {
       if (targetCount > 0 && questions.length >= targetCount) break;
       // 검증을 통과하지 못한 문항은 출제하지 않습니다(자동 생성 문항으로 대체).
       if (usedWordIds.has(vq.wordId) || validateVerifiedQuestion(vq, words).length) continue;
-      const targetWord = words[vq.wordId];
-      const origOptions = [...vq.options];
-      const correctText = origOptions[vq.correctAnswerIndex];
-      const shuffled = [...origOptions].sort(() => Math.random() - 0.5);
+      const order = shuffle(vq.options.map((_, i) => i));
       questions.push({
         wordId: vq.wordId,
         type: vq.type,
         typeName: EXAM_TYPES[vq.type].typeName,
         instruction: EXAM_TYPES[vq.type].instruction,
         prompt: vq.prompt,
-        options: shuffled,
-        correctAnswerIndex: shuffled.indexOf(correctText),
-        word: targetWord
+        options: order.map(i => vq.options[i]),
+        correctAnswerIndex: order.indexOf(vq.correctAnswerIndex),
+        ...(vq.notes && { notes: order.map(i => vq.notes[i]) }),
+        word: words[vq.wordId]
       });
       usedWordIds.add(vq.wordId);
     }
 
     const remainingWords = eligibleKanji.filter(w => !usedWordIds.has(w.wordId));
-    const pool = [...remainingWords].sort(() => Math.random() - 0.5);
+    const pool = shuffle(remainingWords);
 
     let typeToggle = 0;
     for (const w of pool) {
@@ -8488,7 +8581,7 @@ const kanjiData = {
         const candidates = eligibleKanji.filter(o => o.hiragana !== w.hiragana && !Array.from(w.word).some(ch => o.word.includes(ch)));
         const distinctDists = [];
         const seen = new Set([w.hiragana]);
-        for (const c of candidates.sort(() => Math.random() - 0.5)) {
+        for (const c of shuffle(candidates)) {
           if (!seen.has(c.hiragana)) {
             seen.add(c.hiragana);
             distinctDists.push(c.hiragana);
@@ -8496,7 +8589,7 @@ const kanjiData = {
           }
         }
         if (distinctDists.length === 3) {
-          const opts = [w.hiragana, ...distinctDists].sort(() => Math.random() - 0.5);
+          const opts = shuffle([w.hiragana, ...distinctDists]);
           questions.push({
             wordId: w.wordId,
             type: 1,
@@ -8513,7 +8606,7 @@ const kanjiData = {
         const candidates = eligibleKanji.filter(o => o.word !== w.word && o.hiragana !== w.hiragana);
         const distinctDists = [];
         const seen = new Set([w.word]);
-        for (const c of candidates.sort(() => Math.random() - 0.5)) {
+        for (const c of shuffle(candidates)) {
           if (!seen.has(c.word)) {
             seen.add(c.word);
             distinctDists.push(c.word);
@@ -8521,7 +8614,7 @@ const kanjiData = {
           }
         }
         if (distinctDists.length === 3) {
-          const opts = [w.word, ...distinctDists].sort(() => Math.random() - 0.5);
+          const opts = shuffle([w.word, ...distinctDists]);
           questions.push({
             wordId: w.wordId,
             type: 2,
@@ -8537,7 +8630,7 @@ const kanjiData = {
       }
     }
 
-    questions.sort(() => Math.random() - 0.5);
+    shuffle(questions);
     return targetCount > 0 ? questions.slice(0, targetCount) : questions;
   }
 
@@ -8627,15 +8720,23 @@ const kanjiData = {
     if (focus) ui['exam-menu-title'].focus();
   }
 
+  const EXAM_SIZE = 20;
+  let examWrongOnly = false;
+
+  const el = (tag, className, text) => {
+    const node = document.createElement(tag);
+    if (className) node.className = className;
+    if (text !== undefined) node.textContent = text;
+    return node;
+  };
+
   function showExamModal(dayKey) {
     examTargetDay = dayKey;
-    const eligibleCount = examPoolSize(dayKey);
+    const pool = examPoolSize(dayKey);
     ui['exam-modal-title'].textContent = `${label(dayKey)} 모의시험`;
-    ui['exam-modal-desc'].textContent = `출제할 문제 수를 선택해 주세요. (출제 가능: 최대 ${eligibleCount}문항)`;
-    ui['exam-modal-standard'].textContent = `기본 시험 (${Math.min(20, eligibleCount)}문항)`;
-    ui['exam-modal-full'].textContent = `전체 시험 (${eligibleCount}문항)`;
+    ui['exam-modal-desc'].textContent = `출제 가능한 ${pool}문항 중 ${Math.min(EXAM_SIZE, pool)}문항을 무작위로 골라 출제해요. 풀이 방식을 선택해 주세요.`;
     ui['exam-modal'].hidden = false;
-    ui['exam-modal-standard'].focus();
+    ui['exam-modal-step'].focus();
   }
 
   function hideExamModal() {
@@ -8643,57 +8744,129 @@ const kanjiData = {
     examTargetDay = null;
   }
 
-  function startExam(dayKey, modeType) {
+  // mode: 'step'(한 문제씩, 고르면 바로 채점) | 'batch'(한 번에 풀고 마지막에 채점)
+  function startExam(dayKey, mode) {
     hideExamModal();
-    const eligibleCount = examPoolSize(dayKey);
-    const targetCount = modeType === 'standard' ? Math.min(20, eligibleCount) : eligibleCount;
-    const questions = buildExamQuestions(dayKey, targetCount);
-
+    const questions = buildExamQuestions(dayKey, Math.min(EXAM_SIZE, examPoolSize(dayKey)));
     if (!questions.length) {
       warn('출제 가능한 문제가 없습니다.');
       return;
     }
-
-    activeExam = {
-      day: dayKey,
-      mode: modeType,
-      questions,
-      currentIndex: 0,
-      userAnswers: new Array(questions.length).fill(-1)
-    };
-
+    activeExam = { day: dayKey, mode, questions, currentIndex: 0, userAnswers: new Array(questions.length).fill(-1) };
     setView('exam');
     renderExamQuestion();
     ui['exam-day-title'].focus();
   }
 
-  // 【…】 대상은 밑줄로, 問題5(용법)는 단어만 크게 보여 줍니다. 문장형 지문은 읽기용 크기로 줄입니다.
+  // 【…】는 밑줄 대상으로 그립니다.
+  const promptSpans = text => text.split(/(【[^【】]+】)/).filter(Boolean).map(part => {
+    const target = part.startsWith('【') && part.endsWith('】');
+    return el('span', target ? 'exam-target' : '', target ? part.slice(1, -1) : part);
+  });
+
+  // 해설용 문장: 問題3은 빈칸에, 問題2는 밑줄 자리에 정답을 넣고, 問題5는 바르게 쓰인 문장을 보여 줍니다.
+  function solvedPrompt(q) {
+    const correct = q.options[q.correctAnswerIndex];
+    if (q.type === 3) return q.prompt.replace(EXAM_BLANK, `【${correct}】`);
+    if (q.type === 2) return q.prompt.includes('【') ? q.prompt.replace(/【[^【】]+】/, `【${correct}】`) : correct;
+    return q.type === 5 ? correct : q.prompt;
+  }
+
   function renderExamStem(q) {
     const stem = ui['exam-stem'];
-    const usage = q.type === 5;
-    const parts = usage ? [q.prompt.replace(/[【】]/g, '')] : q.prompt.split(/(【[^【】]+】)/).filter(Boolean);
-    const plain = parts.join('').replace(/[【】]/g, '');
-    stem.className = 'exam-stem japanese' + (!usage && plain.length > 8 ? ' sentence' : '');
-    stem.replaceChildren(...parts.map(part => {
-      const span = document.createElement('span');
-      const target = !usage && part.startsWith('【') && part.endsWith('】');
-      span.textContent = target ? part.slice(1, -1) : part;
-      if (target) span.className = 'exam-target';
-      return span;
-    }));
+    const text = q.type === 5 ? q.prompt.replace(/[【】]/g, '') : q.prompt;
+    stem.className = 'exam-stem japanese' + (q.type !== 5 && text.replace(/[【】]/g, '').length > 8 ? ' sentence' : '');
+    stem.replaceChildren(...promptSpans(text));
+  }
+
+  // 선지 하나의 표기·읽기·뜻(또는 해설). 해설 사전 → 단어장(같은 일차 우선) → 활용형 원형 순으로 찾습니다.
+  function describeOption(q, index, dayKey) {
+    if (q.notes) return { note: q.notes[index] };
+    const text = q.options[index];
+    // 정답 선지는 대상 단어 자체입니다(같은 읽기의 다른 단어와 혼동하지 않도록).
+    if (index === q.correctAnswerIndex && q.type !== 4) return { word: q.word.word, reading: q.word.hiragana, meaning: q.word.meaning, base: q.type === 3 && text !== q.word.word };
+    const gloss = EXAM_GLOSS[text];
+    if (gloss) return { word: gloss[0], reading: gloss[1], meaning: gloss[2] };
+    const vocab = [...(modes.vocab.data[dayKey] || []), ...Object.values(modes.vocab.data).flat()];
+    const exact = vocab.find(w => w.word === text || w.hiragana === text);
+    if (exact) return { word: exact.word, reading: exact.hiragana, meaning: exact.meaning };
+    if (q.type === 3 || q.type === 4) {
+      const plain = text.replace(/^[おご](?=[一-鿿])/, '');
+      const stemOf = w => w.word.replace(/[ぁ-ゖ]+$/, '');
+      const base = vocab
+        .filter(w => /[うくぐすつぬぶむるい]$/.test(w.word) && KANJI_RE.test(stemOf(w)) && plain.startsWith(stemOf(w)))
+        .sort((a, b) => stemOf(b).length - stemOf(a).length)[0];
+      if (base) return { word: base.word, reading: base.hiragana, meaning: base.meaning, base: true };
+    }
+    if (q.type === 1) return { note: '실제로 쓰지 않는 읽기예요. 장음·탁음·촉음을 바꾼 함정이에요.' };
+    if (q.type === 2) return { note: '실제로 쓰지 않는 표기예요. 모양이나 음이 비슷한 한자를 섞은 함정이에요.' };
+    return { note: '단어장에 없는 표현이에요.' };
+  }
+
+  // 문항 하나의 해설: 문맥 문장, 대상 단어(읽기·발음·뜻), 선지 4개 각각의 표기·읽기·뜻.
+  function renderBreakdown(q, answer, dayKey) {
+    const box = el('div', 'exam-breakdown');
+
+    const solved = solvedPrompt(q);
+    // 자동 생성 문항처럼 단어만 있는 지문은 아래 단어 정보와 겹치므로 생략합니다.
+    const context = solved === q.word.word || solved === q.word.hiragana ? null : el('div', 'exam-bd-context japanese');
+    if (context) {
+      context.lang = 'ja';
+      context.append(...promptSpans(solved));
+    }
+
+    const target = el('div', 'exam-bd-word');
+    const word = el('strong', 'japanese', q.word.word);
+    word.lang = 'ja';
+    const reading = el('span', 'exam-bd-reading japanese', q.word.hiragana);
+    reading.lang = 'ja';
+    target.append(word, reading, el('span', 'exam-bd-pron', q.word.pronunciation || ''), el('span', 'exam-bd-meaning', q.word.meaning));
+
+    const list = el('ol', 'exam-bd-options');
+    list.setAttribute('aria-label', '선지별 해설');
+    q.options.forEach((text, i) => {
+      const correct = i === q.correctAnswerIndex, picked = i === answer;
+      const item = el('li', 'exam-bd-option' + (correct ? ' correct' : picked ? ' picked-wrong' : ''));
+      const head = el('div', 'exam-bd-head');
+      const optionText = el('span', 'exam-bd-text japanese', text);
+      optionText.lang = 'ja';
+      head.append(el('span', 'exam-bd-num', String(i + 1)), optionText);
+      if (correct) head.append(el('span', 'exam-bd-tag ok', '정답'));
+      if (picked) head.append(el('span', 'exam-bd-tag ' + (correct ? 'ok' : 'no'), '내 답'));
+
+      const info = describeOption(q, i, dayKey);
+      const detail = el('div', 'exam-bd-detail');
+      if (info.note) detail.textContent = info.note;
+      else {
+        // 선지에 이미 보이는 표기·읽기는 반복하지 않습니다.
+        const showWord = info.word !== text, showReading = info.reading !== text && info.reading !== info.word;
+        const formText = showWord && showReading ? `${info.word}（${info.reading}）` : showWord ? info.word : showReading ? info.reading : '';
+        const form = el('span', 'japanese', formText);
+        form.lang = 'ja';
+        detail.append(...(info.base ? [el('span', '', '기본형 ')] : []), ...(formText ? [form, el('span', '', ' · ')] : []), el('span', '', info.meaning));
+      }
+      item.append(head, detail);
+      list.append(item);
+    });
+
+    box.append(...(context ? [context] : []), target, list);
+    return box;
   }
 
   function renderExamQuestion() {
     if (!activeExam) return;
-    const q = activeExam.questions[activeExam.currentIndex];
-    const total = activeExam.questions.length;
-    const current = activeExam.currentIndex;
-    const unanswered = activeExam.userAnswers.filter(a => a === -1).length;
+    const { questions, userAnswers, currentIndex: current, mode } = activeExam;
+    const q = questions[current], answer = userAnswers[current], total = questions.length;
+    const step = mode === 'step', locked = step && answer !== -1, last = current === total - 1;
+    const answered = userAnswers.filter(a => a !== -1).length;
+    const correctSoFar = questions.filter((x, i) => userAnswers[i] === x.correctAnswerIndex).length;
 
-    ui['exam-day-title'].textContent = `${label(activeExam.day)} 모의시험`;
+    ui['exam-day-title'].textContent = `${label(activeExam.day)} · ${step ? '한 문제씩' : '한 번에 풀기'}`;
     ui['exam-type-badge'].textContent = q.typeName;
     ui['exam-position'].textContent = `문제 ${current + 1} / ${total}`;
-    ui['exam-unanswered-count'].textContent = unanswered > 0 ? `미응답 ${unanswered}문제` : '모두 응답함';
+    ui['exam-unanswered-count'].textContent = step
+      ? `맞힘 ${correctSoFar} · 틀림 ${answered - correctSoFar}`
+      : answered < total ? `미응답 ${total - answered}문제` : '모두 응답함';
     ui['exam-progress'].max = total;
     ui['exam-progress'].value = current + 1;
     ui['exam-instruction'].textContent = q.instruction;
@@ -8701,89 +8874,96 @@ const kanjiData = {
 
     const frag = document.createDocumentFragment();
     q.options.forEach((optText, optIdx) => {
-      const btn = document.createElement('button');
+      const isCorrect = optIdx === q.correctAnswerIndex, picked = optIdx === answer;
+      const status = locked ? (isCorrect ? ' correct' : picked ? ' wrong' : '') : picked ? ' selected' : '';
+      const btn = el('button', 'exam-option-btn' + status);
       btn.type = 'button';
-      btn.className = 'exam-option-btn' + (activeExam.userAnswers[current] === optIdx ? ' selected' : '');
       btn.setAttribute('role', 'radio');
-      btn.setAttribute('aria-checked', String(activeExam.userAnswers[current] === optIdx));
-
-      const num = document.createElement('span');
-      num.className = 'exam-option-num';
-      num.textContent = optIdx + 1;
-
-      const text = document.createElement('span');
-      text.className = 'exam-option-text';
-      text.textContent = optText;
-
-      btn.append(num, text);
-      btn.addEventListener('click', () => {
-        activeExam.userAnswers[current] = optIdx;
-        renderExamQuestion();
-      });
+      btn.setAttribute('aria-checked', String(picked));
+      if (locked) btn.setAttribute('aria-disabled', 'true');
+      btn.append(el('span', 'exam-option-num', String(optIdx + 1)), el('span', 'exam-option-text', optText));
+      if (locked && (isCorrect || picked)) btn.append(el('span', 'exam-option-tag', isCorrect ? '정답' : '내 답'));
+      btn.addEventListener('click', () => chooseExamAnswer(optIdx));
       frag.append(btn);
     });
     ui['exam-options'].replaceChildren(frag);
 
+    ui['exam-feedback'].hidden = !locked;
+    if (locked) {
+      const ok = answer === q.correctAnswerIndex;
+      ui['exam-feedback-status'].textContent = ok ? '정답이에요' : `아쉬워요 · 정답은 ${q.correctAnswerIndex + 1}번이에요`;
+      ui['exam-feedback-status'].className = 'exam-feedback-status ' + (ok ? 'ok' : 'no');
+      ui['exam-feedback-body'].replaceChildren(renderBreakdown(q, answer, activeExam.day));
+    }
+
     ui['exam-prev'].disabled = current === 0;
-    ui['exam-next'].disabled = current === total - 1;
+    ui['exam-next'].disabled = last || (step && !locked);
+    ui['exam-next'].hidden = step && last;
+    ui['exam-submit'].hidden = step && !(last && locked);
+    ui['exam-submit'].textContent = step ? '결과 보기' : '답안 제출하기';
+  }
+
+  function chooseExamAnswer(optIdx) {
+    if (!activeExam) return;
+    const { questions, userAnswers, currentIndex, mode } = activeExam;
+    const q = questions[currentIndex];
+    if (q.options[optIdx] === undefined) return;
+    // 한 문제씩 모드는 처음 고른 답으로 확정합니다.
+    if (mode === 'step' && userAnswers[currentIndex] !== -1) return;
+    userAnswers[currentIndex] = optIdx;
+    renderExamQuestion();
+    if (mode === 'step') {
+      ui.announcement.textContent = optIdx === q.correctAnswerIndex ? '정답입니다.' : `오답입니다. 정답은 ${q.correctAnswerIndex + 1}번 ${q.options[q.correctAnswerIndex]}입니다.`;
+      ui['exam-feedback-status'].focus();
+    }
+  }
+
+  function moveExam(offset) {
+    if (!activeExam) return false;
+    const next = activeExam.currentIndex + offset;
+    if (next < 0 || next >= activeExam.questions.length) return false;
+    if (offset > 0 && activeExam.mode === 'step' && activeExam.userAnswers[activeExam.currentIndex] === -1) return false;
+    activeExam.currentIndex = next;
+    renderExamQuestion();
+    if (activeExam.mode === 'step') ui['exam-day-title'].focus();
+    return true;
   }
 
   function submitExam() {
     if (!activeExam) return;
-    const total = activeExam.questions.length;
-    const unanswered = activeExam.userAnswers.filter(a => a === -1).length;
-
-    let msg = '시험을 종료하고 답안을 제출하시겠습니까?';
-    if (unanswered > 0) {
-      msg = `아직 풀지 않은 문제가 ${unanswered}개 있습니다.\n미응답 문항은 오답으로 처리됩니다.\n정말 시험을 종료하고 제출하시겠습니까?`;
-    }
-    if (!confirm(msg)) return;
-
-    let correctCount = 0;
-    const wrongWordIdsSet = new Set();
-    const wrongQuestions = [];
-
-    for (let i = 0; i < total; i++) {
-      const q = activeExam.questions[i];
-      const ans = activeExam.userAnswers[i];
-      if (ans === q.correctAnswerIndex) {
-        correctCount++;
-      } else {
-        wrongWordIdsSet.add(q.wordId);
-        wrongQuestions.push({
-          qIndex: i + 1,
-          question: q,
-          userAnswer: ans >= 0 ? q.options[ans] : '(미응답)',
-          correctAnswer: q.options[q.correctAnswerIndex]
-        });
-      }
+    const { questions, userAnswers, mode, day: examDay } = activeExam;
+    const total = questions.length;
+    const unanswered = userAnswers.filter(a => a === -1).length;
+    if (mode === 'step' && unanswered) return;
+    if (mode === 'batch') {
+      const msg = unanswered > 0
+        ? `아직 풀지 않은 문제가 ${unanswered}개 있습니다.\n미응답 문항은 오답으로 처리됩니다.\n정말 시험을 종료하고 제출하시겠습니까?`
+        : '시험을 종료하고 답안을 제출하시겠습니까?';
+      if (!confirm(msg)) return;
     }
 
-    const wrongWordIds = Array.from(wrongWordIdsSet);
-    const scorePercent = Math.round((correctCount / total) * 100);
-
+    const correctCount = questions.filter((q, i) => userAnswers[i] === q.correctAnswerIndex).length;
+    const wrongWordIds = [...new Set(questions.filter((q, i) => userAnswers[i] !== q.correctAnswerIndex).map(q => q.wordId))];
     const attempt = {
       id: 'att_' + Date.now(),
       createdAt: new Date().toISOString(),
-      day: activeExam.day,
-      mode: activeExam.mode,
+      day: examDay,
+      mode,
       totalCount: total,
       correctCount,
-      scorePercent,
-      questions: activeExam.questions,
-      userAnswers: [...activeExam.userAnswers],
+      scorePercent: Math.round((correctCount / total) * 100),
+      questions,
+      userAnswers: [...userAnswers],
       wrongWordIds
     };
 
-    saveExamAttempt(activeExam.day, attempt);
+    saveExamAttempt(examDay, attempt);
     lastExamAttempt = attempt;
-    lastExamWrongQuestions = wrongQuestions;
     activeExam = null;
-
-    showExamResult(attempt, wrongQuestions);
+    showExamResult(attempt);
   }
 
-  function showExamResult(attempt, wrongQuestions) {
+  function showExamResult(attempt) {
     setView('exam-result');
     const isPerfect = attempt.wrongWordIds.length === 0;
 
@@ -8792,7 +8972,7 @@ const kanjiData = {
       ? '완벽해요! 모든 문제를 맞혔습니다.'
       : attempt.scorePercent >= 80
       ? '훌륭해요! 틀린 단어를 복습하고 완성도를 높여 보세요.'
-      : '수고하셨어요. 틀린 단어를 꼼꼼히 복습해 보세요.';
+      : '수고하셨어요. 아래 해설로 틀린 이유를 확인해 보세요.';
 
     ui['exam-score-percent'].textContent = `${attempt.scorePercent}%`;
     ui['exam-score-percent'].className = 'exam-score-percent' + (attempt.scorePercent < 60 ? ' low' : '');
@@ -8806,60 +8986,41 @@ const kanjiData = {
     ui['exam-result-correct'].textContent = `${attempt.correctCount}문제`;
     ui['exam-result-wrong'].textContent = `${attempt.wrongWordIds.length}개 단어 (${attempt.totalCount - attempt.correctCount}문제)`;
 
-    if (wrongQuestions.length > 0) {
-      ui['exam-wrong-container'].hidden = false;
-      const frag = document.createDocumentFragment();
-      wrongQuestions.forEach(item => {
-        const li = document.createElement('li');
-        li.className = 'exam-wrong-item';
-        li.innerHTML = `<strong>문제 ${item.qIndex}번 (${item.question.typeName})</strong><br>` +
-          `<span class="japanese" style="font-weight:700;">${item.question.prompt}</span><br>` +
-          `<span style="color:var(--red);">내 답안: ${item.userAnswer}</span> · ` +
-          `<span style="color:var(--green); font-weight:700;">정답: ${item.correctAnswer}</span>`;
-        frag.append(li);
-      });
-      ui['exam-wrong-list'].replaceChildren(frag);
-    } else {
-      ui['exam-wrong-container'].hidden = true;
-    }
-
     ui['exam-review-start'].disabled = isPerfect;
-    ui['exam-review-start'].textContent = isPerfect ? '오답이 없어요 (만점!)' : `오답 단어 복습 (${attempt.wrongWordIds.length}개)`;
+    ui['exam-review-start'].textContent = isPerfect ? '오답이 없어요 (만점!)' : `오답 단어 카드로 복습 (${attempt.wrongWordIds.length}개)`;
 
-    ui['exam-all-answers'].hidden = true;
-    ui['exam-toggle-answers'].textContent = '전체 정답 확인';
-
+    examWrongOnly = false;
+    ui['exam-toggle-answers'].hidden = isPerfect;
+    renderExamResultList();
     ui['exam-result-title'].focus();
   }
 
-  function toggleAllAnswers() {
+  // 모든 문항을 해설 카드로 보여 줍니다. 틀린 문항은 펼친 상태로 시작합니다.
+  function renderExamResultList() {
     if (!lastExamAttempt) return;
-    const box = ui['exam-all-answers'];
-    if (!box.hidden) {
-      box.hidden = true;
-      ui['exam-toggle-answers'].textContent = '전체 정답 확인';
-      return;
-    }
-
+    const { questions, userAnswers, day: examDay } = lastExamAttempt;
     const frag = document.createDocumentFragment();
-    lastExamAttempt.questions.forEach((q, idx) => {
-      const userAns = lastExamAttempt.userAnswers[idx];
-      const isCorrect = userAns === q.correctAnswerIndex;
-      const div = document.createElement('div');
-      div.className = 'exam-all-answer-item ' + (isCorrect ? 'correct' : 'wrong');
-      div.innerHTML = `<div><strong>${idx + 1}번. ${q.typeName}</strong> ` +
-        `<span style="color:${isCorrect ? 'var(--green)' : 'var(--red)'}; font-weight:700;">${isCorrect ? '정답' : '오답'}</span></div>` +
-        `<p style="margin:6px 0; color:var(--muted); font-size:12px;">${q.instruction}</p>` +
-        `<div class="japanese" style="font-size:18px; font-weight:750; margin:6px 0;">${q.prompt}</div>` +
-        `<div style="font-size:13px; margin-top:6px;">` +
-        `내가 고른 답: <strong>${userAns >= 0 ? q.options[userAns] : '미응답'}</strong> / ` +
-        `정답: <strong style="color:var(--green);">${q.options[q.correctAnswerIndex]}</strong>` +
-        `</div>`;
-      frag.append(div);
+    questions.forEach((q, idx) => {
+      const answer = userAnswers[idx], ok = answer === q.correctAnswerIndex;
+      if (examWrongOnly && ok) return;
+      const item = el('details', 'exam-result-item');
+      item.open = !ok;
+      const summary = el('summary');
+      const word = el('span', 'exam-result-word japanese', q.word.word);
+      word.lang = 'ja';
+      summary.append(el('span', 'exam-result-num', `${idx + 1}`), word, el('span', 'exam-result-type', q.typeName),
+        el('span', 'exam-result-badge ' + (ok ? 'ok' : 'no'), ok ? '정답' : answer === -1 ? '미응답' : '오답'));
+      item.append(summary, renderBreakdown(q, answer, examDay));
+      frag.append(item);
     });
-    box.replaceChildren(frag);
-    box.hidden = false;
-    ui['exam-toggle-answers'].textContent = '정답 목록 닫기';
+    ui['exam-all-answers'].replaceChildren(frag);
+    ui['exam-toggle-answers'].textContent = examWrongOnly ? '전체 문항 보기' : '틀린 문제만 보기';
+    ui['exam-toggle-answers'].setAttribute('aria-pressed', String(examWrongOnly));
+  }
+
+  function toggleWrongOnly() {
+    examWrongOnly = !examWrongOnly;
+    renderExamResultList();
   }
 
   function openExamReview(dayKey, wrongWordIds) {
@@ -8934,46 +9095,32 @@ const kanjiData = {
       openExamMenu();
     }
   });
-  ui['exam-prev'].addEventListener('click', () => {
-    if (activeExam && activeExam.currentIndex > 0) {
-      activeExam.currentIndex--;
-      renderExamQuestion();
-    }
-  });
-  ui['exam-next'].addEventListener('click', () => {
-    if (activeExam && activeExam.currentIndex < activeExam.questions.length - 1) {
-      activeExam.currentIndex++;
-      renderExamQuestion();
-    }
-  });
+  ui['exam-prev'].addEventListener('click', () => moveExam(-1));
+  ui['exam-next'].addEventListener('click', () => moveExam(1));
   ui['exam-submit'].addEventListener('click', submitExam);
-  ui['exam-modal-standard'].addEventListener('click', () => {
-    if (examTargetDay) startExam(examTargetDay, 'standard');
-  });
-  ui['exam-modal-full'].addEventListener('click', () => {
-    if (examTargetDay) startExam(examTargetDay, 'full');
-  });
+  ui['exam-modal-step'].addEventListener('click', () => { if (examTargetDay) startExam(examTargetDay, 'step'); });
+  ui['exam-modal-batch'].addEventListener('click', () => { if (examTargetDay) startExam(examTargetDay, 'batch'); });
   ui['exam-modal-cancel'].addEventListener('click', hideExamModal);
 
   ui['exam-review-start'].addEventListener('click', () => {
     if (lastExamAttempt) openExamReview(lastExamAttempt.day, lastExamAttempt.wrongWordIds);
   });
-  ui['exam-toggle-answers'].addEventListener('click', toggleAllAnswers);
+  ui['exam-toggle-answers'].addEventListener('click', toggleWrongOnly);
   ui['exam-retake'].addEventListener('click', () => {
     if (lastExamAttempt) showExamModal(lastExamAttempt.day);
   });
   ui['exam-result-menu'].addEventListener('click', () => openExamMenu());
 
   ui['exam-review-back'].addEventListener('click', () => {
-    if (lastExamAttempt) showExamResult(lastExamAttempt, lastExamWrongQuestions);
+    if (lastExamAttempt) showExamResult(lastExamAttempt);
     else openExamMenu();
   });
   ui['exam-review-finish'].addEventListener('click', () => {
-    if (lastExamAttempt) showExamResult(lastExamAttempt, lastExamWrongQuestions);
+    if (lastExamAttempt) showExamResult(lastExamAttempt);
     else openExamMenu();
   });
   ui['exam-review-empty-back'].addEventListener('click', () => {
-    if (lastExamAttempt) showExamResult(lastExamAttempt, lastExamWrongQuestions);
+    if (lastExamAttempt) showExamResult(lastExamAttempt);
     else openExamMenu();
   });
   ui['exam-review-prev'].addEventListener('click', () => moveExamReview(-1));

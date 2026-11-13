@@ -64,7 +64,7 @@ function boot(storage = new Map(), confirmResponse = true) {
 
   let code = source.replace(
     '  showHome(false);',
-    '  globalThis.examTest = {openExamMenu,showExamModal,startExam,buildExamQuestions,renderExamQuestion,submitExam,showExamResult,toggleAllAnswers,openExamReview,renderExamReviewCard,moveExamReview,loadExamHistory,saveExamAttempt,get activeExam(){return activeExam},get lastExamAttempt(){return lastExamAttempt},get lastExamWrongQuestions(){return lastExamWrongQuestions},get examReviewWords(){return examReviewWords},get examReviewIndex(){return examReviewIndex},get view(){return view},get ui(){return ui}}; showHome(false);'
+    '  globalThis.examTest = {openExamMenu,showExamModal,startExam,buildExamQuestions,renderExamQuestion,submitExam,showExamResult,toggleWrongOnly,chooseExamAnswer,moveExam,openExamReview,renderExamReviewCard,moveExamReview,loadExamHistory,saveExamAttempt,get activeExam(){return activeExam},get lastExamAttempt(){return lastExamAttempt},get examReviewWords(){return examReviewWords},get examReviewIndex(){return examReviewIndex},get view(){return view},get ui(){return ui}}; showHome(false);'
   );
 
   let currentConfirm = () => confirmResponse;
@@ -135,7 +135,7 @@ console.log('PASS 2: Exam menu displays 15 days with correct initial status.');
 const app3 = boot();
 const t3 = app3.test;
 
-t3.startExam('Day 1', 'standard');
+t3.startExam('Day 1', 'batch');
 assert.equal(t3.view, 'exam', 'View should be exam');
 assert.equal(t3.activeExam.questions.length, 20, 'Standard exam should have 20 questions');
 assert.equal(t3.activeExam.currentIndex, 0, 'Initial question index should be 0');
@@ -175,12 +175,14 @@ assert(t3.lastExamAttempt, 'Last exam attempt must exist');
 assert.equal(t3.lastExamAttempt.totalCount, 20);
 assert.equal(t3.lastExamAttempt.correctCount, 15); // 15 correct
 assert.equal(t3.lastExamAttempt.scorePercent, 75); // 15/20 = 75%
-// Wrong questions: 15, 16, 17, 18, 19 = 5 wrong questions
-assert.equal(t3.lastExamWrongQuestions.length, 5);
-
-// Check that wrong questions list is rendered
-const wrongList = app3.nodes.get('exam-wrong-list');
-assert.equal(wrongList.children.length, 5, '5 wrong questions should be rendered');
+// Every question gets a breakdown card; wrong ones (15~19) start open
+const resultList = app3.nodes.get('exam-all-answers');
+assert.equal(resultList.children.length, 20, 'all 20 questions get a breakdown');
+assert.equal(resultList.children.filter(c => c.open).length, 5, 'the 5 wrong questions start expanded');
+t3.toggleWrongOnly();
+assert.equal(resultList.children.length, 5, 'wrong-only filter shows 5');
+t3.toggleWrongOnly();
+assert.equal(resultList.children.length, 20);
 
 console.log('PASS 3: Exam execution, answer revision, scoring (75%), and unanswered penalty verified.');
 
@@ -243,7 +245,7 @@ assert.equal(history.attempts.length, 1, 'History has 1 attempt');
 assert.equal(history.attempts[0].scorePercent, 75);
 
 // Retake exam on Day 1 with 100% score
-t5.startExam('Day 1', 'standard');
+t5.startExam('Day 1', 'batch');
 for (let i = 0; i < t5.activeExam.questions.length; i++) {
   t5.activeExam.userAnswers[i] = t5.activeExam.questions[i].correctAnswerIndex;
 }
@@ -263,7 +265,7 @@ console.log('PASS 5: LocalStorage persistence, reload, and multi-attempt history
 const app6 = boot();
 const t6 = app6.test;
 
-t6.startExam('Day 1', 'standard');
+t6.startExam('Day 1', 'batch');
 // Test keyboard choice 1, 2, 3, 4
 app6.events.keydown({ key: '2', altKey: false, ctrlKey: false, metaKey: false, isComposing: false, target: { tagName: 'BODY' }, preventDefault() {} });
 assert.equal(t6.activeExam.userAnswers[0], 1, 'Key 2 should select option index 1');
@@ -280,15 +282,49 @@ for (let i = 0; i < t6.activeExam.questions.length; i++) {
 }
 t6.submitExam();
 
-// Toggle full answer view
-t6.toggleAllAnswers();
+// Perfect score: all 20 breakdowns render collapsed, wrong-only filter is hidden
 const allAnswersBox = app6.nodes.get('exam-all-answers');
-assert.equal(allAnswersBox.hidden, false, 'All answers box should be visible after toggle');
-assert.equal(allAnswersBox.children.length, 20, 'Should render all 20 question answers');
+assert.equal(allAnswersBox.children.length, 20, 'Should render all 20 question breakdowns');
+assert(allAnswersBox.children.every(c => !c.open), 'correct answers start collapsed');
+assert.equal(app6.nodes.get('exam-toggle-answers').hidden, true);
 
-t6.toggleAllAnswers();
-assert.equal(allAnswersBox.hidden, true, 'All answers box should collapse on second toggle');
+console.log('PASS 6: Keyboard shortcuts and result breakdown list verified.');
 
-console.log('PASS 6: Keyboard shortcuts and answer breakdown toggle verified.');
+// Test 7: Step-by-step mode — answer locks, feedback shows, next is gated, result at the end
+const app7 = boot(new Map(), false);
+const t7 = app7.test;
+const key = k => app7.events.keydown({ key: k, altKey: false, ctrlKey: false, metaKey: false, isComposing: false, target: { tagName: 'BODY' }, preventDefault() {} });
+t7.startExam('Day 2', 'step');
+assert.equal(t7.activeExam.mode, 'step');
+assert.equal(t7.activeExam.questions.length, 20);
+assert.equal(app7.nodes.get('exam-feedback').hidden, true, 'no feedback before answering');
+assert.equal(t7.moveExam(1), false, 'cannot skip an unanswered question');
+assert.equal(app7.nodes.get('exam-next').disabled, true);
+const sq0 = t7.activeExam.questions[0];
+const sWrong = (sq0.correctAnswerIndex + 1) % 4;
+t7.chooseExamAnswer(sWrong);
+t7.chooseExamAnswer(sq0.correctAnswerIndex);
+assert.equal(t7.activeExam.userAnswers[0], sWrong, 'first choice is final in step mode');
+assert.equal(app7.nodes.get('exam-feedback').hidden, false, 'feedback shows right after answering');
+assert.match(app7.nodes.get('exam-feedback-status').textContent, new RegExp(`정답은 ${sq0.correctAnswerIndex + 1}번`));
+const sOpts = app7.nodes.get('exam-options').children;
+assert(sOpts[sq0.correctAnswerIndex].className.includes('correct') && sOpts[sWrong].className.includes('wrong'));
+assert.equal(app7.nodes.get('exam-feedback-body').children[0].className, 'exam-breakdown');
+assert.equal(app7.nodes.get('exam-submit').hidden, true, 'no submit before the last question');
+key('Enter');
+assert.equal(t7.activeExam.currentIndex, 1, 'Enter moves on after answering');
+for (let i = 1; i < 20; i++) {
+  key(String(t7.activeExam.questions[i].correctAnswerIndex + 1));
+  if (i < 19) key('Enter');
+}
+assert.equal(app7.nodes.get('exam-submit').hidden, false, 'result button appears after the last answer');
+assert.equal(app7.nodes.get('exam-next').hidden, true);
+key('Enter');
+assert.equal(t7.view, 'exam-result', 'step mode finishes without a confirm dialog');
+assert.equal(t7.lastExamAttempt.mode, 'step');
+assert.equal(t7.lastExamAttempt.correctCount, 19);
+assert.equal(app7.nodes.get('exam-all-answers').children.length, 20);
+
+console.log('PASS 7: Step mode locks the first answer, shows instant feedback, gates navigation, and finishes to results.');
 
 console.log('ALL EXAM TESTS PASSED SUCCESSFULLY!');

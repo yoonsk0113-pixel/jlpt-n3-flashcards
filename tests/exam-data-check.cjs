@@ -21,9 +21,9 @@ const context = {
   matchMedia: () => ({ matches: true })
 };
 const code = source.replace('  showHome(false);',
-  '  globalThis.examData = {EXAM_TYPES,EXAM_BLANK,verifiedQuestions,validateVerifiedQuestion,validateVerifiedDay,examPoolSize,buildExamQuestions,words:modes.vocab.data};');
+  '  globalThis.examData = {EXAM_TYPES,EXAM_BLANK,verifiedQuestions,validateVerifiedQuestion,validateVerifiedDay,examPoolSize,buildExamQuestions,describeOption,solvedPrompt,EXAM_BLANK,words:modes.vocab.data};');
 vm.runInNewContext(code, context);
-const { EXAM_TYPES, verifiedQuestions, validateVerifiedQuestion, validateVerifiedDay, examPoolSize, buildExamQuestions, words } = context.examData;
+const { EXAM_TYPES, EXAM_BLANK, verifiedQuestions, validateVerifiedQuestion, validateVerifiedDay, examPoolSize, buildExamQuestions, describeOption, solvedPrompt, words } = context.examData;
 
 // 1. 15개 DAY 모두 6문항, 유형 분배(문맥 규정 2·유의 1·용법 1·읽기/표기 2), 모든 검증 통과
 const problems = [];
@@ -69,6 +69,8 @@ expectFail({ type: 9 }, '없는 유형');
 expectFail({ options: ['辺り', '汗', '相手', 'アイディア'] }, '정답이 대상 단어가 아님');
 expectFail({ type: 4, prompt: '何かいい（　）はありませんか。' }, '問題4에 빈칸');
 expectFail({ type: 5, wordId: 0, prompt: '相手', options: ['相手a', '相手b', '相手c', '相手d'] }, '問題5 표식 누락');
+expectFail({ type: 5, wordId: 0, prompt: '【相手】', options: ['相手a', '相手b', '相手c', '相手d'] }, '問題5 해설(notes) 누락');
+expectFail({ notes: ['a', 'b', 'c'] }, '선지 수와 다른 notes');
 expectFail({ type: 1, wordId: 0, prompt: '【相手】がいない。', options: ['あいて', 'アイテ', 'そうて', 'あいで'] }, '問題1 가타카나 선택지');
 verifiedQuestions['Day X'] = [base, base];
 const dupProblems = validateVerifiedDay('Day X', day1);
@@ -105,4 +107,46 @@ for (const id of new Set([...declared, ...referenced])) {
 assert.deepEqual(missing, [], '마크업에 없는 id: ' + missing.join(', '));
 assert.deepEqual(duplicated, [], '중복 id: ' + duplicated.join(', '));
 console.log(`PASS 4: 스크립트가 참조하는 id ${new Set([...declared, ...referenced]).size}개가 모두 HTML에 1개씩 존재.`);
+// 5. 선지 해설: 모든 문항의 모든 선지가 표기·읽기·뜻 또는 해설을 가짐. 문맥 규정·유의 표현은 단어장/사전에서 반드시 찾음
+const FALLBACK = '단어장에 없는 표현이에요.';
+let explained = 0;
+for (let d = 1; d <= 15; d++) {
+  const key = 'Day ' + d;
+  for (const vq of verifiedQuestions[key]) {
+    const q = { ...vq, word: words[key][vq.wordId] };
+    q.options.forEach((opt, i) => {
+      const info = describeOption(q, i, key);
+      assert(info.note ? info.note.trim() : info.meaning && info.reading && info.word, `${key} ${opt}: 해설 없음`);
+      assert.notEqual(info.note, FALLBACK, `${key} ${opt}: 해설 사전에 없는 선지`);
+      if (vq.type === 5 && i === vq.correctAnswerIndex) assert.match(info.note, /바르게 쓰였어요/);
+      explained++;
+    });
+    const solved = solvedPrompt(q);
+    assert(!solved.includes(EXAM_BLANK), `${key}: 해설 문장에 빈칸이 남음`);
+    if (vq.type === 3) assert(solved.includes('【' + vq.options[vq.correctAnswerIndex] + '】'), `${key}: 빈칸에 정답이 채워져야 함`);
+  }
+  // 자동 생성 문항의 선지(같은 일차 단어)도 모두 단어장에서 뜻을 찾음
+  for (const q of buildExamQuestions(key, examPoolSize(key)).filter(q => !q.notes && (q.type === 1 || q.type === 2))) {
+    if (verifiedQuestions[key].some(v => v.prompt === q.prompt)) continue;
+    q.options.forEach((_, i) => assert(describeOption(q, i, key).meaning, `${key} 자동 생성 선지 뜻 없음: ${q.options[i]}`));
+  }
+}
+// 같은 읽기의 다른 단어(固い/硬い = かたい)가 있어도 정답 선지는 대상 단어로 설명
+const hard = words['Day 3'].findIndex(w => w.word === '硬い');
+const hardQ = { type: 1, wordId: hard, word: words['Day 3'][hard], prompt: '硬い', options: ['かたい', 'かっと', 'かえす', 'かがみ'], correctAnswerIndex: 0 };
+assert.equal(describeOption(hardQ, 0, 'Day 3').meaning, words['Day 3'][hard].meaning);
+console.log(`PASS 5: 검수 문항 선지 ${explained}개 모두 표기·읽기·뜻 또는 해설 보유, 해설 문장에 정답 채움.`);
+
+// 6. 무작위성: 선지 순서가 출제마다 바뀌고, 용법 해설(notes)이 선지와 함께 움직임
+const positions = new Set(), orders = new Set();
+for (let n = 0; n < 60; n++) {
+  const q = buildExamQuestions('Day 2', 20).find(x => x.type === 5);
+  assert.match(q.notes[q.correctAnswerIndex], /바르게 쓰였어요/, 'notes가 정답 선지를 따라가야 함');
+  q.options.forEach((o, i) => assert.equal(q.notes[i], verifiedQuestions['Day 2'].find(v => v.type === 5).notes[verifiedQuestions['Day 2'].find(v => v.type === 5).options.indexOf(o)]));
+  positions.add(q.correctAnswerIndex);
+  orders.add(buildExamQuestions('Day 2', 20).map(x => x.prompt).join('|'));
+}
+assert.equal(positions.size, 4, '정답 위치가 1~4번 모두에 나와야 함');
+assert(orders.size > 50, '문항 순서가 출제마다 달라야 함');
+console.log('PASS 6: 선지·문항 순서 무작위(Fisher-Yates), 정답 위치 4곳 모두 출현, 해설이 선지와 함께 이동.');
 console.log('ALL EXAM DATA CHECKS PASSED');
