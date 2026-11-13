@@ -57,7 +57,7 @@ console.log('PASS 1: Day 1~15 검수 문항 90개 — 한국어 혼입 0, 빈칸
 
 // 2. 검증기가 실제로 결함을 잡는지(음성 테스트)
 const day1 = words['Day 1'];
-const base = { wordId: 6, type: 3, prompt: '激しい運動をしたので、たくさん（　）をかきました。', ko: '격한 운동을 해서 땀을 많이 흘렸습니다.', options: ['汗', '辺り', '相手', 'アイディア'], correctAnswerIndex: 0 };
+const base = { wordId: 6, type: 3, prompt: '激しい運動をしたので、たくさん（　）をかきました。', ko: '격한 운동을 해서 땀을 많이 흘렸습니다.', vocab: ['激しい|はげしい|격렬하다', '運動|うんどう|운동'], options: ['汗', '辺り', '相手', 'アイディア'], correctAnswerIndex: 0 };
 assert.equal(validateVerifiedQuestion(base, day1).length, 0, '정상 문항은 통과해야 함');
 const expectFail = (patch, label) => {
   const errs = validateVerifiedQuestion({ ...base, ...patch }, day1);
@@ -84,6 +84,11 @@ expectFail({ type: 5, wordId: 0, prompt: '【相手】', options: ['相手a', '�
 expectFail({ notes: ['a', 'b', 'c'] }, '선지 수와 다른 notes');
 expectFail({ ko: undefined }, '해석 누락');
 expectFail({ ko: '激しい運動' }, '한국어가 아닌 해석');
+expectFail({ vocab: [] }, '단어 주석 없음');
+expectFail({ vocab: ['電車|でんしゃ|전철'] }, '문장에 없는 단어 주석');
+expectFail({ vocab: ['運動|ウンドウ|운동'] }, '가타카나 읽기');
+expectFail({ vocab: ['運動|うんどう'] }, '뜻 없는 주석');
+expectFail({ vocab: ['汗|あせ|땀'] }, '대상 단어를 주석에 넣음');
 expectFail({ type: 1, wordId: 0, prompt: '【相手】がいない。', options: ['あいて', 'アイテ', 'そうて', 'あいで'] }, '問題1 가타카나 선택지');
 verifiedQuestions['Day X'] = [base, base];
 const dupProblems = validateVerifiedDay('Day X', day1);

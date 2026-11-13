@@ -64,7 +64,7 @@ function boot(storage = new Map(), confirmResponse = true) {
 
   let code = source.replace(
     '  showHome(false);',
-    '  globalThis.examTest = {openExamMenu,startExam,buildExamQuestions,renderExamQuestion,submitExam,toggleWrongOnly,chooseExamAnswer,moveExam,openExamReview,moveExamReview,loadExamHistory,get activeExam(){return activeExam},get lastExamAttempt(){return lastExamAttempt},get examReviewWords(){return examReviewWords},get examReviewIndex(){return examReviewIndex},get view(){return view}}; showHome(false);'
+    '  globalThis.examTest = {openExamMenu,startExam,buildExamQuestions,renderExamQuestion,submitExam,toggleWrongOnly,chooseExamAnswer,moveExam,openExamReview,moveExamReview,loadExamHistory,rehydrateAttempt,get activeExam(){return activeExam},get lastExamAttempt(){return lastExamAttempt},get examReviewWords(){return examReviewWords},get examReviewIndex(){return examReviewIndex},get view(){return view}}; showHome(false);'
   );
 
   let currentConfirm = () => confirmResponse;
@@ -325,15 +325,75 @@ assert.equal(t7.lastExamAttempt.mode, 'step');
 assert.equal(t7.lastExamAttempt.correctCount, 19);
 assert.equal(app7.nodes.get('exam-all-answers').children.length, 20);
 // Verified questions show the Korean translation right under the sentence, then the target word block
-const withKo = app7.nodes.get('exam-all-answers').children.map((item, i) => [item, t7.lastExamAttempt.questions[i]]).filter(([, q]) => q.ko);
+const withKo = app7.nodes.get('exam-all-answers').children.map((item, i) => [item, t7.rehydrateAttempt(t7.lastExamAttempt).questions[i]]).filter(([, q]) => q.ko);
 assert(withKo.length >= 6, 'all 6 verified questions carry a translation');
 for (const [item, q] of withKo) {
   const [context, target] = item.children[1].children;
   assert.equal(context.children[1].textContent, q.ko);
   assert.equal(context.children[1].lang, 'ko');
+  const vocabList = context.children[2];
+  assert.equal(vocabList.children.length, q.vocab.length, 'every sentence word annotation is rendered');
+  const [w0, r0, m0] = q.vocab[0].split('|');
+  assert.equal(vocabList.children[0].children[0].textContent, w0);
+  assert.equal(vocabList.children[0].children.at(-1).textContent, m0);
+  assert.equal(vocabList.children[0].children.length, r0 ? 3 : 2, 'kana words skip the reading');
   assert.equal(target.className, 'exam-bd-word');
 }
 
 console.log('PASS 7: Step mode locks the first answer, shows instant feedback, gates navigation, and finishes to results.');
+
+// Test 8: Storage diet — minimal items, exact rehydration, legacy v1 migration, corrupted records
+const app8 = boot();
+const t8 = app8.test;
+t8.startExam('Day 3', 'batch');
+t8.activeExam.questions.forEach((q, i) => { t8.activeExam.userAnswers[i] = i % 3 === 0 ? -1 : q.correctAnswerIndex; });
+const liveQuestions = JSON.stringify(t8.activeExam.questions);
+const liveAnswers = [...t8.activeExam.userAnswers];
+t8.submitExam();
+const stored = JSON.parse(app8.storage.get('jlpt_exam_v1_Day3'));
+assert.equal(stored.version, 2);
+const saved = stored.attempts[0];
+assert(!('questions' in saved) && !('userAnswers' in saved), 'full question objects are not stored');
+assert.equal(saved.items.length, 20);
+for (const it of saved.items) {
+  assert.deepEqual(Object.keys(it).sort(), ('v' in it ? ['a', 'o', 'v', 'w'] : ['a', 'o', 't', 'w']));
+}
+const bytes = app8.storage.get('jlpt_exam_v1_Day3').length;
+assert(bytes < 2500, `one attempt should stay small (got ${bytes} chars)`);
+const re = t8.rehydrateAttempt(saved);
+assert.equal(JSON.stringify(re.questions), liveQuestions, 'rehydrated questions equal the ones that were shown');
+assert.deepEqual(Array.from(re.userAnswers), liveAnswers);
+
+// Legacy v1 record (full question objects) is migrated in place and still rehydrates to the same questions
+const legacyQuestions = JSON.parse(liveQuestions).map(({ v, order, ...q }) => ({ ...q, word: { ...q.word, wordId: q.wordId } }));
+const legacyRecord = { version: 1, day: 'Day 3', attempts: [{ id: 'att_old', createdAt: '2026-11-01T00:00:00.000Z', day: 'Day 3', mode: 'standard', totalCount: 20, correctCount: 13, scorePercent: 65, questions: legacyQuestions, userAnswers: liveAnswers, wrongWordIds: [1, 2] }] };
+const legacyRaw = JSON.stringify(legacyRecord);
+const app9 = boot(new Map([['jlpt_exam_v1_Day3', legacyRaw]]));
+const migrated = app9.test.loadExamHistory('Day 3');
+assert.equal(migrated.version, 2);
+assert.equal(migrated.attempts[0].scorePercent, 65);
+assert(!('questions' in migrated.attempts[0]));
+const rewritten = app9.storage.get('jlpt_exam_v1_Day3');
+assert(rewritten.length * 4 < legacyRaw.length, `legacy record shrinks (${legacyRaw.length} -> ${rewritten.length})`);
+const reLegacy = app9.test.rehydrateAttempt(migrated.attempts[0]).questions;
+assert.equal(reLegacy.length, 20);
+reLegacy.forEach((q, i) => {
+  assert.equal(q.prompt, legacyQuestions[i].prompt);
+  assert.deepEqual(Array.from(q.options), legacyQuestions[i].options);
+  assert.equal(q.correctAnswerIndex, legacyQuestions[i].correctAnswerIndex);
+});
+app9.test.openExamMenu();
+assert(app9.nodes.get('exam-day-summary').textContent.includes('1일차 응시 완료'), 'migrated attempt still counts in the menu');
+
+// Corrupted pieces are skipped without throwing
+const broken = { version: 2, day: 'Day 3', attempts: [null, 'x', { day: 'Day 3', scorePercent: 50, wrongWordIds: [], items: [null, { v: 99, w: '?', o: [0, 1, 2, 3], a: 0 }, { t: 1, w: saved.items[0].w, o: ['a'], a: 0 }, saved.items[0]] }] };
+const app10 = boot(new Map([['jlpt_exam_v1_Day3', JSON.stringify(broken)], ['jlpt_exam_v1_Day4', '{not json']]));
+const cleaned = app10.test.loadExamHistory('Day 3');
+assert.equal(cleaned.attempts.length, 1, 'invalid attempts are dropped');
+assert.equal(app10.test.rehydrateAttempt(cleaned.attempts[0]).questions.length, 1, 'only the valid item rehydrates');
+assert.equal(app10.test.loadExamHistory('Day 4').attempts.length, 0, 'unparsable history falls back to empty');
+app10.test.openExamMenu();
+
+console.log(`PASS 8: Storage diet — ${bytes} chars per 20-question attempt (legacy record ${legacyRaw.length} → ${rewritten.length}), exact rehydration, legacy v1 migration, corrupted records skipped.`);
 
 console.log('ALL EXAM TESTS PASSED SUCCESSFULLY!');
