@@ -6,7 +6,7 @@ const path = require('node:path');
 const source = fs.readFileSync(path.join(__dirname,'../index.html'),'utf8').match(/<script>([\s\S]*?)<\/script>/)[1];
 const sample = {word:'同',hiragana:'どう',pronunciation:'도',meaning:'같음',kanji_composition:'한자',explanation:'설명',mnemonic:'기억'};
 const fixtures = {'Day 1':Array.from({length:3},()=>({...sample}))};
-function boot(data=fixtures,storage=new Map(),blocked=false) {
+function boot(data=fixtures,storage=new Map(),blocked=false,extra={}) {
   const nodes = new Map(), events = {}, writes = [];
   const node = () => ({hidden:false,disabled:false,textContent:'',children:[],classList:{toggle(){},add(){},remove(){}},
     append(...x){this.children.push(...x)},replaceChildren(...x){this.children=x},focus(){},setAttribute(){},scrollIntoView(){},
@@ -15,7 +15,7 @@ function boot(data=fixtures,storage=new Map(),blocked=false) {
   const localStorage = {getItem:key=>storage.get(key)??null,setItem(key,value){if(blocked)throw Error('blocked');writes.push(key);storage.set(key,value)}};
   let code = source.replace(/const wordData = [\s\S]*?\n};/,`const wordData = ${JSON.stringify(data)};`);
   code = code.replace('  showHome(false);','  globalThis.test = {openStudy,moveStudy,canStudy,get studyIndex(){return studyIndex},resetDay,selectMode,openDay,answer,revealAnswer,previousCard,startSession,showHome,counts,groupVocabulary,validVocab,get state(){return state},get view(){return view}}; showHome(false);');
-  const context = {document,localStorage,confirm:()=>true,window:{innerWidth:390},matchMedia:()=>({matches:true})};vm.runInNewContext(code,context);
+  const context = {document,localStorage,confirm:()=>true,window:{innerWidth:390},matchMedia:()=>({matches:true}),...extra};vm.runInNewContext(code,context);
   return {a:context.test,n:nodes,storage,events,context,writes};
 }
 let x=boot();const a=x.a;a.selectMode('vocab');a.openDay('Day 1');
@@ -163,3 +163,14 @@ const manifest=JSON.parse(fs.readFileSync(path.join(root,'manifest.webmanifest')
 for(const f of [...assets.filter(a=>a!=='./'),...manifest.icons.map(i=>i.src)])assert(fs.existsSync(path.join(root,f)),'missing '+f);
 assert.equal(manifest.display,'standalone');assert(/manifest\.webmanifest/.test(fs.readFileSync(path.join(root,'index.html'),'utf8')));
 console.log('PASS: PWA precache list and manifest icons exist, standalone manifest linked.');
+// TTS: speaker buttons read the hiragana with a ja-JP voice, stop the previous utterance first, and hide without the API.
+const speech=()=>{const log=[];return {log,globals:{SpeechSynthesisUtterance:class{constructor(text){this.text=text}},speechSynthesis:{cancel(){log.push('cancel')},speak(u){log.push(u)},getVoices:()=>[{lang:'en-US',name:'E'},{lang:'ja-JP',name:'Kyoko'}]}}};};
+const tts=speech();const sp=boot({'Day 1':words3},new Map(),false,tts.globals);sp.a.selectMode('vocab');sp.a.openDay('Day 1');
+assert.equal(sp.n.get('word-speak').hidden,false);
+sp.a.revealAnswer();sp.n.get('word-speak').click();
+assert.deepEqual(tts.log.slice(0,1),['cancel']);const said=tts.log[1];
+assert.equal(said.text,words3[sp.a.state.queue[sp.a.state.index]].hiragana);assert.equal(said.lang,'ja-JP');assert.equal(said.voice.name,'Kyoko');
+sp.a.openStudy('Day 1');sp.n.get('study-speak').click();assert.equal(sp.n.get('study-speak').hidden,false);assert.equal(tts.log.at(-1).text,words3[0].hiragana);assert.equal(tts.log.at(-2),'cancel');
+const mute=boot({'Day 1':words3});mute.a.selectMode('vocab');mute.a.openDay('Day 1');mute.n.get('word-speak').click();
+assert.equal(mute.n.get('word-speak').hidden,true);mute.a.openStudy('Day 1');assert.equal(mute.n.get('study-speak').hidden,true);
+console.log('PASS: TTS reads hiragana with a ja-JP voice after cancelling the previous utterance, and hides speaker buttons without the API.');

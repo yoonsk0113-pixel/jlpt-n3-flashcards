@@ -6,7 +6,7 @@ const path = require('node:path');
 
 const source = fs.readFileSync(path.join(__dirname, '../index.html'), 'utf8').match(/<script>([\s\S]*?)<\/script>/)[1];
 
-function boot(storage = new Map(), confirmResponse = true) {
+function boot(storage = new Map(), confirmResponse = true, extra = {}) {
   const nodes = new Map(), events = {}, writes = [];
   const node = (id = '') => ({
     id,
@@ -73,7 +73,8 @@ function boot(storage = new Map(), confirmResponse = true) {
     localStorage,
     confirm: (msg) => currentConfirm(msg),
     window: { innerWidth: 390 },
-    matchMedia: () => ({ matches: true })
+    matchMedia: () => ({ matches: true }),
+    ...extra
   };
 
   vm.runInNewContext(code, context);
@@ -395,5 +396,37 @@ assert.equal(app10.test.loadExamHistory('Day 4').attempts.length, 0, 'unparsable
 app10.test.openExamMenu();
 
 console.log(`PASS 8: Storage diet — ${bytes} chars per 20-question attempt (legacy record ${legacyRaw.length} → ${rewritten.length}), exact rehydration, legacy v1 migration, corrupted records skipped.`);
+
+// Test 9: Review-card sentence speaker reads the solved sentence (answer filled in, no 【】 markers)
+const spoken = [];
+const app11 = boot(new Map(), true, {
+  SpeechSynthesisUtterance: class { constructor(text) { this.text = text; } },
+  speechSynthesis: { cancel() { spoken.push('cancel'); }, speak(u) { spoken.push(u); }, getVoices: () => [] }
+});
+const t11 = app11.test;
+t11.startExam('Day 5', 'batch');
+t11.activeExam.questions.forEach((q, i) => { t11.activeExam.userAnswers[i] = q.correctAnswerIndex; });
+t11.submitExam();
+const reQs = t11.rehydrateAttempt(t11.lastExamAttempt).questions;
+const cards = app11.nodes.get('exam-all-answers').children;
+const blankIdx = reQs.findIndex(q => q.type === 3);
+const row = cards[blankIdx].children[1].children[0].children[0];
+assert.equal(row.className, 'exam-bd-sentence-row');
+const speakBtn = row.children[1];
+assert.equal(speakBtn['aria-label'], '문장 발음 듣기');
+speakBtn.click();
+const expected = reQs[blankIdx].prompt.replace('（　）', reQs[blankIdx].options[reQs[blankIdx].correctAnswerIndex]);
+assert.equal(spoken[0], 'cancel');
+assert.equal(spoken[1].text, expected, 'speaks the sentence with the answer filled in');
+assert.equal(spoken[1].lang, 'ja-JP');
+assert(!/[【】（）]/.test(spoken[1].text));
+// Without the API there is no sentence button at all
+const muteQs = t6.rehydrateAttempt(t6.lastExamAttempt).questions;
+const muteIdx = muteQs.findIndex(q => q.type === 3);
+const muteRow = app6.nodes.get('exam-all-answers').children[muteIdx].children[1].children[0].children[0];
+assert.equal(muteRow.className, 'exam-bd-sentence-row');
+assert.equal(muteRow.children.length, 1, 'sentence only, no speaker button');
+
+console.log('PASS 9: Review-card sentence speaker reads the solved sentence with a ja-JP utterance; no button without the API.');
 
 console.log('ALL EXAM TESTS PASSED SUCCESSFULLY!');

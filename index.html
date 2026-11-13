@@ -12,7 +12,7 @@
   <link rel="apple-touch-icon" href="./icon-180.png">
   <title>매일 한 장 · 일본어 단어와 한자</title>
   <style>
-    :root { color-scheme: light; --paper:#f5f3ed; --ink:#262d29; --muted:#666b64; --line:#dcded5; --green:#246347; --red:#a43834; }
+    :root { --speaker:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M4 9.5h3.5L12 5.5v13l-4.5-4H4z'/%3E%3Cpath d='M15.5 9a4 4 0 0 1 0 6M18.5 6.5a7.5 7.5 0 0 1 0 11'/%3E%3C/svg%3E"); color-scheme: light; --paper:#f5f3ed; --ink:#262d29; --muted:#666b64; --line:#dcded5; --green:#246347; --red:#a43834; }
     * { box-sizing:border-box; }
     [hidden] { display:none !important; }
     body { margin:0; background:var(--paper); color:var(--ink); font-family:"Noto Sans KR","Apple SD Gothic Neo","Malgun Gothic",sans-serif; line-height:1.6; word-break:keep-all; overflow-wrap:anywhere; }
@@ -57,6 +57,15 @@
     .study-card { touch-action:pan-y pinch-zoom; padding:28px 0 2px; }
     .study-card .word { font-size:clamp(36px,10vw,56px); padding:0 24px 8px; text-align:left; scroll-margin-top:20px; }
     .study-card .details { padding-top:0; }
+    .word-line { display:flex; flex-wrap:wrap; align-items:center; column-gap:8px; padding-right:20px; }
+    .word-line .speak-btn { margin-left:auto; }
+    .front { flex-wrap:wrap; column-gap:10px; }
+    /* 단어는 한 줄을 지키고, 자리가 모자라면 스피커 버튼이 다음 줄로 내려갑니다. */
+    .word-line .word, .front .word { flex:0 1 auto; max-width:100%; }
+    .speak-btn { flex-shrink:0; display:inline-grid; place-items:center; width:40px; height:40px; padding:0; border:0; border-radius:50%; background:#e8ebe4; color:var(--green); }
+    .speak-btn::before { content:""; width:20px; height:20px; background:currentColor; -webkit-mask:var(--speaker) center/contain no-repeat; mask:var(--speaker) center/contain no-repeat; }
+    .speak-btn.is-off { visibility:hidden; }
+    @media (hover:hover) { .speak-btn:hover { background:#d9ddd3; } }
     .study-card .details .key-answer { font-size:22px; font-weight:650; }
     .study-card .details li:first-child { border:0; margin-top:0; padding-top:0; }
     .study-nav { display:grid; grid-template-columns:1fr auto 1fr; align-items:center; gap:16px; position:sticky; bottom:0; background:var(--paper); padding:16px 0 max(16px,env(safe-area-inset-bottom)); z-index:1; }
@@ -164,7 +173,8 @@
     .exam-feedback-status.no { color:var(--red); }
     .exam-breakdown { display:grid; gap:14px; font-size:14px; line-height:1.6; }
     .exam-bd-context { padding:12px 14px; border-radius:10px; background:var(--paper); }
-    .exam-bd-sentence { font-size:17px; line-height:1.75; line-break:strict; }
+    .exam-bd-sentence-row { display:flex; align-items:flex-start; gap:10px; }
+    .exam-bd-sentence { flex:1; min-width:0; font-size:17px; line-height:1.75; line-break:strict; }
     .exam-bd-ko { margin-top:8px; padding-top:8px; border-top:1px solid var(--line); color:var(--ink); font-size:15px; line-height:1.6; }
     .exam-bd-vocab { display:flex; flex-wrap:wrap; gap:6px; margin:10px 0 0; padding:0; list-style:none; }
     .exam-bd-vocab li { display:flex; align-items:baseline; gap:6px; padding:4px 10px; border-radius:8px; background:#fffefa; border:1px solid var(--line); font-size:13px; line-height:1.5; }
@@ -232,7 +242,7 @@
     <div class="progress-meta"><span id="position"></span><span id="round-hint">뜻을 떠올려 보세요</span></div>
     <progress id="progress" value="0" max="1" aria-label="이번 회차 진행률"></progress>
     <article id="card" class="card" aria-label="학습 카드">
-      <div class="front"><h2 id="word" class="word japanese" lang="ja" tabindex="-1"></h2></div>
+      <div class="front"><h2 id="word" class="word japanese" lang="ja" tabindex="-1"></h2><button id="word-speak" class="speak-btn" type="button" aria-label="단어 발음 듣기" hidden></button></div>
       <ul id="details" class="details" hidden></ul>
     </article>
     <p id="assessment-status" class="assessment-status" hidden></p>
@@ -250,7 +260,7 @@
     <progress id="study-progress" value="1" max="50" aria-label="현재 읽는 카드 위치"></progress>
     <p class="help">좌우로 넘겨 읽어 보세요. 암기 기록은 바뀌지 않아요.</p>
     <article id="study-card" class="card study-card" aria-label="단어 읽기 카드">
-      <h2 id="study-word" class="word japanese" lang="ja" tabindex="-1"></h2>
+      <div class="word-line"><h2 id="study-word" class="word japanese" lang="ja" tabindex="-1"></h2><button id="study-speak" class="speak-btn" type="button" aria-label="단어 발음 듣기" hidden></button></div>
       <ul id="study-details" class="details"></ul>
     </article>
     <div id="study-end" class="study-end" hidden><p class="small">이 일차의 마지막 카드예요.</p><button id="study-first" class="back-link">처음부터 보기</button></div>
@@ -313,7 +323,7 @@
     <div id="exam-review-empty" class="exam-empty-box" hidden><p>복습할 오답 단어가 없어요.</p><button id="exam-review-empty-back" class="action neutral">시험 결과로 돌아가기</button></div>
     <article id="exam-review-card" class="card study-card" aria-label="오답 단어 카드">
       <span id="exam-review-badge" class="exam-review-badge"></span>
-      <h2 id="exam-review-word" class="word japanese" lang="ja" tabindex="-1"></h2>
+      <div class="word-line"><h2 id="exam-review-word" class="word japanese" lang="ja" tabindex="-1"></h2><button id="exam-review-speak" class="speak-btn" type="button" aria-label="단어 발음 듣기" hidden></button></div>
       <ul id="exam-review-details" class="details"></ul>
     </article>
     <div id="exam-review-end" class="study-end" hidden><p class="small">마지막 오답 카드예요.</p><button id="exam-review-finish" class="back-link">복습 마치기</button></div>
@@ -7631,13 +7641,25 @@ const kanjiData = {
     kanji: { title:'한자 공부하기', short:'한자', data:kanjiData, front:'kanji', dayCount:10,
       fields:[['meaning','뜻'],['onyomi','음독'],['kunyomi','훈독'],['examples','대표 단어'],['mnemonic','암기법']] }
   };
-  const ids = ["study","study-back","study-title","study-position","study-progress","study-card","study-word","study-details","study-end","study-first","study-prev","study-next","study-bottom-position","reveal","previous","assessment-status","remaining-label","unknown-label","result-message","result-total-label","result-rounds-label","result-first-label","review-unknown","result-previous","restart","home","home-button","home-title","notice","menu","learning","result","days","day-summary","menu-title","day-title","round","remaining","known-count","unknown-count","position","round-hint","progress","card","word","details","unknown","known","next","keyboard-help","result-title","result-total","result-rounds","result-first","announcement","exam-mode","exam-menu","exam-menu-title","exam-day-summary","exam-days","exam","exam-back","exam-day-title","exam-type-badge","exam-position","exam-unanswered-count","exam-progress","exam-instruction","exam-stem","exam-options","exam-prev","exam-next","exam-submit","exam-result","exam-result-title","exam-result-message","exam-score-percent","exam-score-ratio","exam-result-day","exam-result-date","exam-result-total","exam-result-correct","exam-result-wrong","exam-review-start","exam-toggle-answers","exam-all-answers","exam-retake","exam-result-menu","exam-review","exam-review-back","exam-review-title","exam-review-position","exam-review-progress","exam-review-empty","exam-review-empty-back","exam-review-card","exam-review-badge","exam-review-word","exam-review-details","exam-review-end","exam-review-finish","exam-review-nav","exam-review-prev","exam-review-bottom-position","exam-review-next","exam-modal","exam-modal-title","exam-modal-desc","exam-modal-step","exam-modal-batch","exam-feedback","exam-feedback-status","exam-feedback-body","exam-modal-cancel"];
+  const ids = ["study","study-back","study-title","study-position","study-progress","study-card","study-word","study-details","study-end","study-first","study-prev","study-next","study-bottom-position","reveal","previous","assessment-status","remaining-label","unknown-label","result-message","result-total-label","result-rounds-label","result-first-label","review-unknown","result-previous","restart","home","home-button","home-title","notice","menu","learning","result","days","day-summary","menu-title","day-title","round","remaining","known-count","unknown-count","position","round-hint","progress","card","word","details","unknown","known","next","keyboard-help","result-title","result-total","result-rounds","result-first","announcement","exam-mode","exam-menu","exam-menu-title","exam-day-summary","exam-days","exam","exam-back","exam-day-title","exam-type-badge","exam-position","exam-unanswered-count","exam-progress","exam-instruction","exam-stem","exam-options","exam-prev","exam-next","exam-submit","exam-result","exam-result-title","exam-result-message","exam-score-percent","exam-score-ratio","exam-result-day","exam-result-date","exam-result-total","exam-result-correct","exam-result-wrong","exam-review-start","exam-toggle-answers","exam-all-answers","exam-retake","exam-result-menu","exam-review","exam-review-back","exam-review-title","exam-review-position","exam-review-progress","exam-review-empty","exam-review-empty-back","exam-review-card","exam-review-badge","exam-review-word","word-speak","study-speak","exam-review-speak","exam-review-details","exam-review-end","exam-review-finish","exam-review-nav","exam-review-prev","exam-review-bottom-position","exam-review-next","exam-modal","exam-modal-title","exam-modal-desc","exam-modal-step","exam-modal-batch","exam-feedback","exam-feedback-status","exam-feedback-body","exam-modal-cancel"];
   const ui = Object.fromEntries(ids.map(id => [id, document.getElementById(id)]));
   let mode = null, config = null, data = {}, days = [], fields = [];
   let saved = new Map(), signatures = new Map();
   let day = null, state = null, view = 'home';
   const label = key => /^Day\s*(\d+)$/i.test(key) ? key.match(/\d+/)[0] + '일차' : (days.indexOf(key) + 1) + '일차';
   const storageKey = key => 'jlpt_' + mode + (mode === 'vocab' ? '_v2_' : '_') + key.replace(/\s/g, '');
+  // 기기 내장 음성 엔진(오프라인 가능, 외부 음성 파일 없음)으로 일본어를 읽습니다. 지원하지 않으면 버튼을 숨깁니다.
+  const canSpeak = typeof speechSynthesis !== 'undefined' && typeof SpeechSynthesisUtterance !== 'undefined';
+  function speakJa(text) {
+    if (!canSpeak || !text) return false;
+    speechSynthesis.cancel();
+    const utterance = new SpeechSynthesisUtterance(text);
+    utterance.lang = 'ja-JP';
+    const voice = speechSynthesis.getVoices().find(v => /^ja([-_]|$)/i.test(v.lang));
+    if (voice) utterance.voice = voice;
+    speechSynthesis.speak(utterance);
+    return true;
+  }
   const warn = message => { ui.notice.textContent = message; ui.notice.hidden = false; };
   // Progress is keyed to the ordered headword list, so fixing a meaning, explanation or reading keeps it.
   // shortcut: a corrected or reordered headword still resets that day; map by headword if that becomes common.
@@ -7811,6 +7833,7 @@ const kanjiData = {
     ui.progress.max = state.queue.length;
     ui.progress.value = state.index + Number(state.back);
     ui.word.textContent = word[config.front];
+    ui['word-speak'].hidden = true;
     ui.card.classList.toggle('is-back',state.back);
     renderDetails(word,state.back);
     ui.known.hidden = ui.unknown.hidden = state.back;
@@ -8037,6 +8060,8 @@ const kanjiData = {
     ui.progress.max = total; ui.progress.value = c.assessed;
     ui.progress.setAttribute('aria-label','일차별 학습 완료');
     ui.word.textContent = word.word;
+    ui['word-speak'].hidden = !canSpeak;
+    ui['word-speak'].classList.toggle('is-off', !state.revealed);
     ui.card.classList.toggle('is-back',state.revealed);
     renderDetails(word,state.revealed);
     ui.known.hidden = ui.unknown.hidden = !state.revealed;
@@ -8103,6 +8128,7 @@ const kanjiData = {
     ui['study-position'].textContent = ui['study-bottom-position'].textContent = `${studyIndex+1} / ${words.length}`;
     ui['study-progress'].max = words.length; ui['study-progress'].value = studyIndex+1;
     ui['study-word'].textContent = word.word;
+    ui['study-speak'].hidden = !canSpeak;
     renderDetails(word,true,ui['study-details'],true);
     ui['study-prev'].disabled = studyIndex === 0;
     ui['study-next'].disabled = studyIndex === words.length-1;
@@ -8872,7 +8898,16 @@ const kanjiData = {
       const sentence = el('div', 'exam-bd-sentence japanese');
       sentence.lang = 'ja';
       sentence.append(...promptSpans(solved));
-      context.append(sentence);
+      const row = el('div', 'exam-bd-sentence-row');
+      row.append(sentence);
+      if (canSpeak) {
+        const speak = el('button', 'speak-btn');
+        speak.type = 'button';
+        speak.setAttribute('aria-label', '문장 발음 듣기');
+        speak.addEventListener('click', () => speakJa(solved.replace(/[【】]/g, '')));
+        row.append(speak);
+      }
+      context.append(row);
       if (q.ko) {
         const translation = el('div', 'exam-bd-ko', q.ko);
         translation.lang = 'ko';
@@ -9148,6 +9183,7 @@ const kanjiData = {
     ui['exam-review-progress'].value = cur + 1;
     ui['exam-review-badge'].textContent = `오답 단어 ${cur + 1} / ${total}`;
     ui['exam-review-word'].textContent = word.word;
+    ui['exam-review-speak'].hidden = !canSpeak;
     renderDetails(word, true, ui['exam-review-details'], true);
 
     ui['exam-review-prev'].disabled = cur === 0;
@@ -9207,6 +9243,9 @@ const kanjiData = {
     if (lastExamAttempt) showExamResult(lastExamAttempt);
     else openExamMenu();
   });
+  ui['word-speak'].addEventListener('click', () => speakJa(data[day]?.[state?.queue[state.index]]?.hiragana));
+  ui['study-speak'].addEventListener('click', () => speakJa(studyWords(studyDay)?.[studyIndex]?.hiragana));
+  ui['exam-review-speak'].addEventListener('click', () => speakJa(examReviewWords[examReviewIndex]?.hiragana));
   ui['exam-review-prev'].addEventListener('click', () => moveExamReview(-1));
   ui['exam-review-next'].addEventListener('click', () => moveExamReview(1));
 
