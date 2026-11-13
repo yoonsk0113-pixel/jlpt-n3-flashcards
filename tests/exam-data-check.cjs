@@ -57,7 +57,7 @@ console.log('PASS 1: Day 1~15 검수 문항 90개 — 한국어 혼입 0, 빈칸
 
 // 2. 검증기가 실제로 결함을 잡는지(음성 테스트)
 const day1 = words['Day 1'];
-const base = { wordId: 6, type: 3, prompt: '激しい運動をしたので、たくさん（　）をかきました。', options: ['汗', '辺り', '相手', 'アイディア'], correctAnswerIndex: 0 };
+const base = { wordId: 6, type: 3, prompt: '激しい運動をしたので、たくさん（　）をかきました。', ko: '격한 운동을 해서 땀을 많이 흘렸습니다.', options: ['汗', '辺り', '相手', 'アイディア'], correctAnswerIndex: 0 };
 assert.equal(validateVerifiedQuestion(base, day1).length, 0, '정상 문항은 통과해야 함');
 const expectFail = (patch, label) => {
   const errs = validateVerifiedQuestion({ ...base, ...patch }, day1);
@@ -82,6 +82,8 @@ expectFail({ type: 4, prompt: '何かいい（　）はありませんか。' },
 expectFail({ type: 5, wordId: 0, prompt: '相手', options: ['相手a', '相手b', '相手c', '相手d'] }, '問題5 표식 누락');
 expectFail({ type: 5, wordId: 0, prompt: '【相手】', options: ['相手a', '相手b', '相手c', '相手d'] }, '問題5 해설(notes) 누락');
 expectFail({ notes: ['a', 'b', 'c'] }, '선지 수와 다른 notes');
+expectFail({ ko: undefined }, '해석 누락');
+expectFail({ ko: '激しい運動' }, '한국어가 아닌 해석');
 expectFail({ type: 1, wordId: 0, prompt: '【相手】がいない。', options: ['あいて', 'アイテ', 'そうて', 'あいで'] }, '問題1 가타카나 선택지');
 verifiedQuestions['Day X'] = [base, base];
 const dupProblems = validateVerifiedDay('Day X', day1);

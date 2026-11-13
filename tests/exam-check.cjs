@@ -324,6 +324,15 @@ assert.equal(t7.view, 'exam-result', 'step mode finishes without a confirm dialo
 assert.equal(t7.lastExamAttempt.mode, 'step');
 assert.equal(t7.lastExamAttempt.correctCount, 19);
 assert.equal(app7.nodes.get('exam-all-answers').children.length, 20);
+// Verified questions show the Korean translation right under the sentence, then the target word block
+const withKo = app7.nodes.get('exam-all-answers').children.map((item, i) => [item, t7.lastExamAttempt.questions[i]]).filter(([, q]) => q.ko);
+assert(withKo.length >= 6, 'all 6 verified questions carry a translation');
+for (const [item, q] of withKo) {
+  const [context, target] = item.children[1].children;
+  assert.equal(context.children[1].textContent, q.ko);
+  assert.equal(context.children[1].lang, 'ko');
+  assert.equal(target.className, 'exam-bd-word');
+}
 
 console.log('PASS 7: Step mode locks the first answer, shows instant feedback, gates navigation, and finishes to results.');
 
