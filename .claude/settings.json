@@ -5,6 +5,8 @@
   },
   "enabledPlugins": {
     "ponytail@ponytail": true,
-    "impeccable@impeccable": true
+    "impeccable@impeccable": true,
+    "commit-commands@anthropic-plugin-directory": true,
+    "vercel@anthropic-plugin-directory": true
   }
 }
