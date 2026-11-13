@@ -7950,6 +7950,8 @@ const kanjiData = {
   function startSession(review) {
     const queue = state.mastery.flatMap((status,i) => !review || status === 'unknown' ? [i] : []);
     if (!queue.length) return;
+    // Each review pass starts in a fresh random order; a reload resumes the saved queue.
+    if (review) shuffle(queue);
     Object.assign(state,{queue,index:0,revealed:false,review,done:false});
     persist(); render();
   }
