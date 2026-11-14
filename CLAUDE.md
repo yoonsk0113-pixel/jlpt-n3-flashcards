@@ -7,9 +7,9 @@
 3. **Git 워크플로** (`commit-commands`): 시맨틱 커밋 메시지(`feat:`, `fix:`, `docs:` 등), 기능 브랜치에서 작업 후 푸시, PR은 요청 시 생성.
 4. **JSON·데이터 검증**: JSON 파일은 `node -e "JSON.parse(require('fs').readFileSync(file,'utf8'))"`로 문법을 확인하고, 학습·시험 데이터는 `tests/exam-data-check.cjs`로 검증한다.
 5. **Next.js·React 모범 사례** (`vercel` 플러그인의 `next-best-practices`, `react-best-practices`): Next.js/React 코드를 다룰 때만 적용한다. 이 저장소는 빌드 없는 Vanilla HTML/JS다.
-6. **Vercel 배포 전 점검** (`vercel` 플러그인): `main` 푸시가 곧 운영 배포이므로, 병합·푸시 전에 테스트 3개 통과와 브라우저 렌더링 확인을 마친다.
+6. **Vercel 배포 전 점검** (`vercel` 플러그인): `main` 푸시가 곧 운영 배포이므로, 병합·푸시 전에 테스트 4개 통과와 브라우저 렌더링 확인을 마친다.
 
 ## 프로젝트 원칙
 
 - 사용자와는 한국어로 소통한다.
-- 빌드 단계·외부 의존성 없이 유지한다. 변경 후 `node tests/check.cjs`, `node tests/exam-check.cjs`, `node tests/exam-data-check.cjs`를 모두 통과시킨다.
+- 빌드 단계·외부 의존성 없이 유지한다. 변경 후 `node tests/check.cjs`, `node tests/exam-check.cjs`, `node tests/exam-data-check.cjs`, `node tests/core-check.cjs`를 모두 통과시킨다. 학습 도메인 로직(간격 반복·ID·오답 생성 등)은 화면과 분리해 `core.js`의 순수 함수로 둔다.

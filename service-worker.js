@@ -1,7 +1,7 @@
 // 오프라인 지원: 앱 파일을 미리 캐시하고, 온라인이면 최신 파일을 받아 캐시를 갱신하며, 오프라인이면 캐시로 응답합니다.
-// CSS·JS·학습 데이터는 모두 index.html 안에 있습니다. ASSETS를 바꿀 때는 CACHE 이름의 숫자를 올립니다.
-const CACHE = 'jlpt-n3-v1';
-const ASSETS = ['./', './index.html', './manifest.webmanifest', './icon-180.png', './icon-192.png', './icon-512.png'];
+// CSS·화면·학습 데이터는 index.html, 학습 도메인 로직은 core.js에 있습니다. ASSETS를 바꿀 때는 CACHE 이름의 숫자를 올립니다.
+const CACHE = 'jlpt-n3-v2';
+const ASSETS = ['./', './index.html', './core.js', './manifest.webmanifest', './icon-180.png', './icon-192.png', './icon-512.png'];
 
 self.addEventListener('install', event => {
   event.waitUntil(caches.open(CACHE).then(cache => cache.addAll(ASSETS)).then(() => self.skipWaiting()));

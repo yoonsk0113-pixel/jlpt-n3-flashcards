@@ -15,7 +15,7 @@ function boot(data=fixtures,storage=new Map(),blocked=false,extra={}) {
   const localStorage = {getItem:key=>storage.get(key)??null,setItem(key,value){if(blocked)throw Error('blocked');writes.push(key);storage.set(key,value)}};
   let code = source.replace(/const wordData = [\s\S]*?\n};/,`const wordData = ${JSON.stringify(data)};`);
   code = code.replace('  showHome(false);','  globalThis.test = {openStudy,moveStudy,canStudy,get studyIndex(){return studyIndex},resetDay,selectMode,openDay,answer,revealAnswer,previousCard,startSession,showHome,counts,groupVocabulary,validVocab,get state(){return state},get view(){return view}}; showHome(false);');
-  const context = {document,localStorage,confirm:()=>true,window:{innerWidth:390},matchMedia:()=>({matches:true}),...extra};vm.runInNewContext(code,context);
+  const context = {document,localStorage,confirm:()=>true,window:{innerWidth:390},matchMedia:()=>({matches:true}),JPCore:require('../core.js'),...extra};vm.runInNewContext(code,context);
   return {a:context.test,n:nodes,storage,events,context,writes};
 }
 let x=boot();const a=x.a;a.selectMode('vocab');a.openDay('Day 1');
@@ -174,3 +174,15 @@ sp.a.openStudy('Day 1');sp.n.get('study-speak').click();assert.equal(sp.n.get('s
 const mute=boot({'Day 1':words3});mute.a.selectMode('vocab');mute.a.openDay('Day 1');mute.n.get('word-speak').click();
 assert.equal(mute.n.get('word-speak').hidden,true);mute.a.openStudy('Day 1');assert.equal(mute.n.get('study-speak').hidden,true);
 console.log('PASS: TTS reads hiragana with a ja-JP voice after cancelling the previous utterance, and hides speaker buttons without the API.');
+// Learning Mode (학습하기) keeps every field visible and adds optional fields + same-kanji words only when data exists.
+const rich={...sample,word:'確認',hiragana:'かくにん',collocations:['予約を確認する'],examples:[{ja:'予約を確認してください。',ko:'예약을 확인해 주세요.',status:'candidate'}],sino_korean:'확인(確認)'};
+const kin={...sample,word:'確実',hiragana:'かくじつ',meaning:'확실'};
+const lm=boot({'Day 1':[rich,kin,{...sample}]});lm.a.selectMode('vocab');lm.a.openStudy('Day 1');
+const rows=lm.n.get('study-details').children[0].children;const titles=rows.map(li=>li.children[0].textContent);
+assert.deepEqual(titles,['히라가나','발음','뜻','한자 구성','연어','예문','한자어 대응','설명','암기법','같은 한자 단어'],'hierarchy: reading → meaning → composition → collocation/example → explanation → mnemonic → related');
+assert.equal(rows[5].children[2].textContent,'검수 전','unverified example is labelled');
+assert.equal(rows[9].children[1].children[0].children[0].textContent,'確実','related word shares 確');
+assert.equal(lm.a.view,'study','Learning Mode is the all-visible study view (no reveal step)');
+const plain=boot({'Day 1':[{...sample}]});plain.a.selectMode('vocab');plain.a.openStudy('Day 1');
+assert.equal(plain.n.get('study-details').children[0].children.length,6,'no optional data → the original six fields only');
+console.log('PASS: Learning Mode shows all fields in hierarchy, optional collocation/example(with review status)/sino-Korean rows, same-kanji words; nothing extra without data.');

@@ -16,6 +16,7 @@ const stubNode = () => new Proxy({ classList: { toggle() {}, add() {}, remove() 
 const context = {
   document: { getElementById: () => stubNode(), createElement: () => stubNode(), createDocumentFragment: () => stubNode(), addEventListener() {}, getSelection: () => '' },
   localStorage: { getItem: () => null, setItem() {} },
+  JPCore: require('../core.js'),
   confirm: () => true,
   window: { innerWidth: 390 },
   matchMedia: () => ({ matches: true })
@@ -127,7 +128,8 @@ assert.deepEqual(duplicated, [], '중복 id: ' + duplicated.join(', '));
 console.log(`PASS 4: 스크립트가 참조하는 id ${new Set([...declared, ...referenced]).size}개가 모두 HTML에 1개씩 존재.`);
 // 5. 선지 해설: 모든 문항의 모든 선지가 표기·읽기·뜻 또는 해설을 가짐. 문맥 규정·유의 표현은 단어장/사전에서 반드시 찾음
 const FALLBACK = '단어장에 없는 표현이에요.';
-let explained = 0;
+let explained = 0, decoys = 0;
+const JPCore = require('../core.js');
 for (let d = 1; d <= 15; d++) {
   const key = 'Day ' + d;
   for (const vq of verifiedQuestions[key]) {
@@ -143,17 +145,24 @@ for (let d = 1; d <= 15; d++) {
     assert(!solved.includes(EXAM_BLANK), `${key}: 해설 문장에 빈칸이 남음`);
     if (vq.type === 3) assert(solved.includes('【' + vq.options[vq.correctAnswerIndex] + '】'), `${key}: 빈칸에 정답이 채워져야 함`);
   }
-  // 자동 생성 문항의 선지(같은 일차 단어)도 모두 단어장에서 뜻을 찾음
+  // 자동 생성 문항: 실제 단어 선지는 단어장 뜻을, 읽기 문항의 음운 함정(F06)은 함정 해설을 가지며 음절 구조가 그럴듯함
   for (const q of buildExamQuestions(key, examPoolSize(key)).filter(q => !q.notes && (q.type === 1 || q.type === 2))) {
     if (verifiedQuestions[key].some(v => v.prompt === q.prompt)) continue;
-    q.options.forEach((_, i) => assert(describeOption(q, i, key).meaning, `${key} 자동 생성 선지 뜻 없음: ${q.options[i]}`));
+    assert.equal(q.options.filter(o => o === q.options[q.correctAnswerIndex]).length, 1, `${key} 정답은 하나`);
+    q.options.forEach((opt, i) => {
+      const info = describeOption(q, i, key);
+      if (info.meaning) return;
+      assert(q.type === 1 && /함정/.test(info.note) && JPCore.plausibleReading(opt), `${key} 자동 생성 선지 해설 없음: ${opt}`);
+      decoys++;
+    });
   }
 }
 // 같은 읽기의 다른 단어(固い/硬い = かたい)가 있어도 정답 선지는 대상 단어로 설명
 const hard = words['Day 3'].findIndex(w => w.word === '硬い');
 const hardQ = { type: 1, wordId: hard, word: words['Day 3'][hard], prompt: '硬い', options: ['かたい', 'かっと', 'かえす', 'かがみ'], correctAnswerIndex: 0 };
 assert.equal(describeOption(hardQ, 0, 'Day 3').meaning, words['Day 3'][hard].meaning);
-console.log(`PASS 5: 검수 문항 선지 ${explained}개 모두 표기·읽기·뜻 또는 해설 보유, 해설 문장에 정답 채움.`);
+assert(decoys > 0, '읽기 문항에 음운 함정이 실제로 출제됨');
+console.log(`PASS 5: 검수 문항 선지 ${explained}개 모두 표기·읽기·뜻 또는 해설 보유, 해설 문장에 정답 채움, 자동 출제 음운 함정 ${decoys}개 해설·음절 검증.`);
 
 // 6. 무작위성: 선지 순서가 출제마다 바뀌고, 용법 해설(notes)이 선지와 함께 움직임
 const positions = new Set(), orders = new Set();
