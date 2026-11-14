@@ -127,6 +127,9 @@
     .result dd { margin:0; font-weight:750; font-variant-numeric:tabular-nums; }
     .result .action + .action { margin-top:12px; }
     .today { margin:0 0 30px; }
+    .daily-limit { display:flex; flex-wrap:wrap; align-items:center; gap:8px 16px; margin:0 0 16px; font-size:14px; }
+    .daily-limit select { min-height:44px; max-width:100%; padding:8px 12px; border:1px solid var(--line); border-radius:12px; background:#fffefa; color:var(--ink); font:inherit; }
+    .daily-limit select:focus-visible { outline:3px solid var(--green); outline-offset:3px; }
     .dash-stats { grid-template-columns:repeat(4,1fr); margin:16px 0 18px; }
     .dash-stats .stat { padding-left:12px; }
     .dash-stats .stat dd { font-size:21px; color:var(--ink); }
@@ -258,6 +261,7 @@
         <div class="stat"><dt>완료</dt><dd id="dash-completed">0</dd></div>
       </dl>
       <button id="today-start" class="action primary full">오늘 학습 시작</button>
+      <div class="daily-limit"><label for="daily-limit">하루 복습 한도</label><select id="daily-limit" aria-label="하루 복습 한도: 일일 최대 복습 카드 수"><option value="20">20개</option><option value="30">30개</option><option value="50">50개</option><option value="all">전체</option></select></div>
       <ol class="today-steps" aria-label="추천 학습 순서">
         <li><button id="step-review" class="today-step"><span class="today-step-num" aria-hidden="true">1</span>오늘의 복습<span id="step-review-meta" class="today-step-meta"></span></button></li>
         <li><button id="step-learn" class="today-step"><span class="today-step-num" aria-hidden="true">2</span>단어 학습<span id="step-learn-meta" class="today-step-meta"></span></button></li>
@@ -8081,6 +8085,9 @@ const kanjiData = {
 
   function assessVocab(known) {
     if (view !== 'learning' || !state.revealed || state.done) return;
+    const id = data[day][state.queue[state.index]].id, store = getSrs();
+    store.cards[id] = JPCore.examUpdate(store.cards[id], known, today());
+    saveSrs();
     state.mastery[state.queue[state.index]] = known ? 'known' : 'unknown';
     state.index++; state.revealed = false;
     state.done = state.index === state.queue.length;
@@ -9427,6 +9434,19 @@ const kanjiData = {
 
   // ---------- 간격 반복 진행도(F02/F03): 단어 내용과 분리해 jlpt_srs_v1에 저장 ----------
   const SRS_KEY = 'jlpt_srs_v1';
+  const LIMIT_KEY = 'jlpt_daily_limit_v1';
+  const limitControl = document.getElementById('daily-limit');
+  let reviewLimit = 30;
+  try { reviewLimit = JPCore.dailyLimit(JSON.parse(localStorage.getItem(LIMIT_KEY) || 'null')); }
+  catch { warn('복습 한도를 불러오지 못해 30개로 시작해요.'); }
+  limitControl.value = reviewLimit === Infinity ? 'all' : String(reviewLimit);
+  limitControl.addEventListener('change', () => {
+    reviewLimit = JPCore.dailyLimit(limitControl.value);
+    limitControl.value = reviewLimit === Infinity ? 'all' : String(reviewLimit);
+    try { localStorage.setItem(LIMIT_KEY, JSON.stringify(reviewLimit === Infinity ? 'all' : reviewLimit)); }
+    catch { warn('복습 한도를 저장하지 못했어요. 새로고침 후 설정이 유지되지 않을 수 있어요.'); }
+    renderDashboard();
+  });
   let srsStore = null;
   const today = () => JPCore.localDate();
   const examResults = (questions, answers) => questions.map((q, i) => ({ id: q.word?.id, correct: answers[i] === q.correctAnswerIndex }));
@@ -9476,7 +9496,7 @@ const kanjiData = {
     if (state) persist();
     fields = modes.vocab.fields;
     const date = today();
-    const { queue, total } = JPCore.dueQueue(getSrs().cards, date);
+    const { queue, total } = JPCore.dueQueue(getSrs().cards, date, reviewLimit);
     daily = { date, queue, total, index: 0, revealed: false, right: 0, wrong: 0 };
     setView('daily');
     renderDaily();
@@ -9496,7 +9516,7 @@ const kanjiData = {
       const next = recommendedDay();
       ui['daily-done-title'].textContent = queue.length ? '오늘 복습을 마쳤어요' : '오늘 복습할 단어가 없어요';
       ui['daily-done-text'].textContent = queue.length
-        ? `맞았다 ${daily.right}개 · 틀렸다 ${daily.wrong}개.` + (daily.total > queue.length ? ` 하루 ${JPCore.DAILY_LIMIT}개를 넘은 ${daily.total - queue.length}개는 내일 이어서 나와요.` : ' 틀린 단어는 내일 다시 나와요.')
+        ? `맞았다 ${daily.right}개 · 틀렸다 ${daily.wrong}개.` + (daily.total > queue.length ? ` 한도를 넘은 ${daily.total - queue.length}개는 복습 대기열에 남아 있어요.` : ' 틀린 단어는 내일 다시 나와요.')
         : '시험에서 맞히거나 틀린 단어가 복습 일정에 들어와요. 다음 단계로 넘어가 보세요.';
       ui['daily-next'].textContent = `다음: ${label(next)} 단어 학습`;
       return;
@@ -9546,11 +9566,11 @@ const kanjiData = {
     const date = today(), store = getSrs(), sum = JPCore.summarize(store.cards, date), next = recommendedDay();
     const [, m, d] = date.split('-').map(Number);
     ui['today-date'].textContent = `${m}월 ${d}일`;
-    ui['dash-due'].textContent = sum.due;
+    const reviewToday = JPCore.dueQueue(store.cards, date, reviewLimit).queue.length;
+    ui['dash-due'].textContent = reviewToday;
     ui['dash-tracked'].textContent = `${Math.round((sum.tracked / VOCAB_INDEX.size) * 100)}%`;
     ui['dash-reviewing'].textContent = sum.reviewing;
     ui['dash-completed'].textContent = sum.completed;
-    const reviewToday = Math.min(sum.due, JPCore.DAILY_LIMIT);
     ui['today-start'].textContent = reviewToday ? `오늘 학습 시작 · 복습 ${reviewToday}개부터` : `오늘 학습 시작 · ${label(next)} 학습`;
     ui['step-review-meta'].textContent = reviewToday ? `${reviewToday}개` : '없음';
     ui['step-learn-meta'].textContent = label(next);
@@ -9662,3 +9682,4 @@ const kanjiData = {
 </script>
 </body>
 </html>
+

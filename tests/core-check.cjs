@@ -237,3 +237,17 @@ for (const w of all) {
   assert.equal(h.pairs.map(p => p.kana).join(''), w.hiragana.replace(/だ$/, ''), `${w.word}: 정렬이 읽기 전체를 덮음`);
 }
 console.log(`PASS 11: 콘텐츠 750개(예문·후리가나·해석·연어) 전수 검증, 동음·동의어 오답 배제, 한자음 힌트 ${hinted}단어(혼합·훈독 제외)·거짓 짝 ${Object.keys(C.SINO_FALSE_FRIENDS).length}개.`);
+
+
+// User-selected queue limit and backup format.
+for(const [raw,n] of [['20',20],['30',30],['50',50],['all',150]]) assert.equal(C.dueQueue(many,D0,C.dailyLimit(raw)).queue.length,n);
+for(const raw of [null,undefined,'invalid','0','-1','100','Infinity','{}']) assert.equal(C.dailyLimit(raw),30);
+const limitBackup=C.makeBackup([['jlpt_daily_limit_v1',JSON.stringify('all')]]);
+assert.equal(JSON.parse(C.parseBackup(JSON.stringify(limitBackup)).data.jlpt_daily_limit_v1),'all');
+let repeated=C.examUpdate(undefined,true,D0);
+for(let i=0;i<10;i++) repeated=C.examUpdate(repeated,true,D0);
+assert.equal(repeated.box,2);assert.equal(repeated.due,C.addDays(D0,3));
+const settled=C.examUpdate(box4,true,C.addDays(D0,1));assert.equal(settled.box,4);assert.equal(settled.due,box4.due);
+assert.equal(C.examUpdate(settled,false,C.addDays(D0,1)).due,C.addDays(D0,2));
+console.log('PASS: configured limits and invalid fallback, backup round-trip, repeated quiz/exam caps and current-date scheduling.');
+

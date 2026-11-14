@@ -12,9 +12,9 @@ function boot(data=fixtures,storage=new Map(),blocked=false,extra={}) {
     append(...x){this.children.push(...x)},replaceChildren(...x){this.children=x},focus(){},setAttribute(){},scrollIntoView(){},
     addEventListener(name,fn){this[name]=fn}});
   const document = {getSelection:()=>'',getElementById(id){if(!nodes.has(id))nodes.set(id,node());return nodes.get(id)},createElement:node,createDocumentFragment:node,addEventListener(name,fn){const old=events[name];events[name]=e=>{old?.(e);fn(e)}}};
-  const localStorage = {getItem:key=>storage.get(key)??null,setItem(key,value){if(blocked)throw Error('blocked');writes.push(key);storage.set(key,value)}};
+  const localStorage = {get length(){return storage.size},key:i=>[...storage.keys()][i],removeItem:key=>storage.delete(key),getItem:key=>storage.get(key)??null,setItem(key,value){if(blocked)throw Error('blocked');writes.push(key);storage.set(key,value)}};
   let code = source.replace(/const wordData = [\s\S]*?\n};/,`const wordData = ${JSON.stringify(data)};`);
-  code = code.replace('  showHome(false);','  globalThis.test = {openStudy,moveStudy,canStudy,get studyIndex(){return studyIndex},resetDay,selectMode,openDay,answer,revealAnswer,previousCard,startSession,showHome,counts,groupVocabulary,validVocab,get state(){return state},get view(){return view}}; showHome(false);');
+  code = code.replace('  showHome(false);','  globalThis.test = {openDaily,importBackup,get daily(){return daily},openStudy,moveStudy,canStudy,get studyIndex(){return studyIndex},resetDay,selectMode,openDay,answer,revealAnswer,previousCard,startSession,showHome,counts,groupVocabulary,validVocab,get state(){return state},get view(){return view}}; showHome(false);');
   const context = {document,localStorage,confirm:()=>true,window:{innerWidth:390},matchMedia:()=>({matches:true}),JPCore:require('../core.js'),...extra};vm.runInNewContext(code,context);
   return {a:context.test,n:nodes,storage,events,context,writes};
 }
@@ -187,3 +187,48 @@ assert.equal(lm.a.view,'study','Learning Mode is the all-visible study view (no 
 const plain=boot({'Day 1':[{...sample}]});plain.a.selectMode('vocab');plain.a.openStudy('Day 1');
 assert.equal(plain.n.get('study-details').children[0].children.length,6,'no optional data → the original six fields only');
 console.log('PASS: Learning Mode shows all fields in hierarchy, optional collocation/example(with review status)/sino-Korean rows, same-kanji words; nothing extra without data.');
+
+
+// Daily limit controls use the same core queue as the dashboard; storage and backup stay isolated.
+const Core = require('../core.js');
+let dateNow = '2026-12-31';
+const clockCore = {...Core,localDate:()=>dateNow};
+const limitWords = {'Day 1':Array.from({length:60},()=>({...sample}))};
+const dueCards = Object.fromEntries(Array.from({length:60},(_,i)=>[Core.vocabId(1,i),{box:1,due:'2026-12-01',correct:0,wrong:0,last:null}]));
+const limitStorage = new Map([['jlpt_srs_v1',JSON.stringify({version:1,cards:dueCards,applied:[]})]]);
+const limits = boot(limitWords,limitStorage,false,{JPCore:clockCore});
+assert.equal(limits.n.get('daily-limit').value,'30');
+for(const [choice,count] of [['20',20],['30',30],['50',50],['all',60]]) {
+ const control=limits.n.get('daily-limit');control.value=choice;control.change();
+ assert.equal(String(JSON.parse(limits.storage.get('jlpt_daily_limit_v1'))),choice);
+ assert.equal(limits.n.get('dash-due').textContent,count);
+ assert.equal(limits.n.get('step-review-meta').textContent,count+'개');
+ limits.a.openDaily();assert.equal(limits.a.daily.queue.length,count);limits.a.showHome();
+}
+assert.equal(boot(limitWords,limitStorage).n.get('daily-limit').value,'all');
+for(const raw of ['bad','null','-1','100']) assert.equal(boot(fixtures,new Map([['jlpt_daily_limit_v1',raw]])).n.get('daily-limit').value,'30');
+const noSave=boot(limitWords,new Map(limitStorage),true,{JPCore:clockCore});
+noSave.n.get('daily-limit').value='20';noSave.n.get('daily-limit').change();
+assert.equal(noSave.n.get('dash-due').textContent,20);assert.match(noSave.n.get('notice').textContent,/저장하지 못/);
+const quiz=boot(fixtures,new Map(),false,{JPCore:clockCore});quiz.a.selectMode('vocab');quiz.a.openDay('Day 1');
+quiz.a.answer(true);assert(!quiz.storage.has('jlpt_srs_v1'),'hidden answer cannot affect SRS');
+const cardState=()=>JSON.parse(quiz.storage.get('jlpt_srs_v1')).cards['d01-001'];
+quiz.a.revealAnswer();quiz.a.answer(true);
+assert.deepEqual(cardState(),Core.examUpdate(undefined,true,dateNow));
+quiz.a.answer(true);assert.equal(cardState().correct,1,'double answer ignored');
+quiz.a.previousCard();quiz.a.revealAnswer();quiz.a.answer(true);assert.equal(cardState().box,2);
+quiz.a.previousCard();quiz.a.revealAnswer();quiz.a.answer(false);assert.equal(cardState().box,1);
+assert.equal(cardState().due,'2027-01-01');
+quiz.a.previousCard();quiz.a.revealAnswer();dateNow='2027-01-01';quiz.a.answer(true);
+assert.equal(cardState().last,dateNow);assert.equal(cardState().due,'2027-01-04','answer uses current date, not opening date');
+const beforeKanji=quiz.storage.get('jlpt_srs_v1');quiz.a.selectMode('kanji');quiz.a.openDay('Day 1');quiz.a.answer(true);
+assert.equal(quiz.storage.get('jlpt_srs_v1'),beforeKanji);
+(async()=>{
+ let reloaded=false;const restored=boot(limitWords,new Map(limitStorage),false,{location:{reload(){reloaded=true}}});
+ const backup=Core.makeBackup([['jlpt_daily_limit_v1','20'],['jlpt_srs_v1',limitStorage.get('jlpt_srs_v1')]]);
+ await restored.a.importBackup({text:async()=>JSON.stringify(backup)});
+ assert(reloaded);assert.equal(restored.storage.get('jlpt_daily_limit_v1'),'20');
+ const reopened=boot(limitWords,restored.storage,false,{JPCore:clockCore});assert.equal(reopened.n.get('daily-limit').value,'20');assert.equal(reopened.n.get('dash-due').textContent,20);
+ console.log('PASS: limit choices, immediate counts/queues, reload, invalid and unavailable storage, backup import, quiz SRS, repeat grading, midnight and kanji isolation.');
+})().catch(error=>{console.error(error);process.exitCode=1});
+
