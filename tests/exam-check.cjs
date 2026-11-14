@@ -59,12 +59,15 @@ function boot(storage = new Map(), confirmResponse = true, extra = {}) {
 
   const localStorage = {
     getItem: key => storage.get(key) ?? null,
-    setItem: (key, value) => { writes.push(key); storage.set(key, value); }
+    setItem: (key, value) => { if (storage.failOn?.(key)) throw Error('quota'); writes.push(key); storage.set(key, value); },
+    removeItem: key => storage.delete(key),
+    key: i => [...storage.keys()][i] ?? null,
+    get length() { return storage.size; }
   };
 
   let code = source.replace(
     '  showHome(false);',
-    '  globalThis.examTest = {openExamMenu,startExam,buildExamQuestions,renderExamQuestion,submitExam,toggleWrongOnly,chooseExamAnswer,moveExam,openExamReview,moveExamReview,loadExamHistory,rehydrateAttempt,get activeExam(){return activeExam},get lastExamAttempt(){return lastExamAttempt},get examReviewWords(){return examReviewWords},get examReviewIndex(){return examReviewIndex},get view(){return view}}; showHome(false);'
+    '  globalThis.examTest = {openExamMenu,startExam,buildExamQuestions,renderExamQuestion,submitExam,toggleWrongOnly,chooseExamAnswer,moveExam,openExamReview,moveExamReview,loadExamHistory,rehydrateAttempt,modes,getSrs,importBackup,openDaily,revealDaily,answerDaily,retryWrong,recommendedDay,showHome,get daily(){return daily},get activeExam(){return activeExam},get lastExamAttempt(){return lastExamAttempt},get examReviewWords(){return examReviewWords},get examReviewIndex(){return examReviewIndex},get view(){return view}}; showHome(false);'
   );
 
   let currentConfirm = () => confirmResponse;
@@ -74,6 +77,7 @@ function boot(storage = new Map(), confirmResponse = true, extra = {}) {
     confirm: (msg) => currentConfirm(msg),
     window: { innerWidth: 390 },
     matchMedia: () => ({ matches: true }),
+    JPCore: require('../core.js'),
     ...extra
   };
 
@@ -429,4 +433,161 @@ assert.equal(muteRow.children.length, 1, 'sentence only, no speaker button');
 
 console.log('PASS 9: Review-card sentence speaker reads the solved sentence with a ja-JP utterance; no button without the API.');
 
-console.log('ALL EXAM TESTS PASSED SUCCESSFULLY!');
+// Test 10: Learning system — exam → Leitner, retry isolation, Daily Review, dashboard, history seeding, corrupted progress
+const JPCore = require('../core.js');
+const todayStr = JPCore.localDate();
+const app12 = boot();
+const t12 = app12.test;
+t12.startExam('Day 2', 'batch');
+t12.activeExam.questions.forEach((q, i) => { t12.activeExam.userAnswers[i] = i < 12 ? q.correctAnswerIndex : (q.correctAnswerIndex + 1) % 4; });
+const examQs = t12.activeExam.questions.map(q => q.word.id);
+t12.submitExam();
+const savedAttemptId = t12.lastExamAttempt.id;
+const srs1 = JSON.parse(app12.storage.get('jlpt_srs_v1'));
+assert.equal(Object.keys(srs1.cards).length, 20, 'every first-attempt word enters spaced review');
+examQs.forEach((id, i) => {
+  assert.match(id, /^d02-\d{3}$/);
+  assert.deepEqual([srs1.cards[id].box, srs1.cards[id].due], i < 12 ? [2, JPCore.addDays(todayStr, 3)] : [1, JPCore.addDays(todayStr, 1)]);
+});
+assert.deepEqual(srs1.applied, [savedAttemptId]);
+
+// Retry wrong questions: practice only — no history entry, no Leitner change
+const srsBefore = app12.storage.get('jlpt_srs_v1');
+assert.equal(app12.nodes.get('exam-retry-wrong').hidden, false);
+t12.retryWrong();
+assert.equal(t12.activeExam.retry, true);
+assert.equal(t12.activeExam.mode, 'step');
+assert.equal(t12.activeExam.questions.length, 8, 'only the 8 wrong questions');
+for (let i = 0; i < 8; i++) { t12.chooseExamAnswer(t12.activeExam.questions[i].correctAnswerIndex); if (i < 7) t12.moveExam(1); }
+t12.submitExam();
+assert.equal(t12.lastExamAttempt.retry, true);
+assert.match(app12.nodes.get('exam-result-title').textContent, /다시 풀기 결과/);
+assert.equal(t12.loadExamHistory('Day 2').attempts.length, 1, 'retry is not saved as an exam attempt');
+assert.equal(app12.storage.get('jlpt_srs_v1'), srsBefore, 'retry does not touch review progress');
+
+// Daily Review: nothing due today → empty state with the next step
+t12.openDaily();
+assert.equal(t12.view, 'daily');
+assert.equal(app12.nodes.get('daily-done').hidden, false);
+assert.match(app12.nodes.get('daily-done-title').textContent, /없어요/);
+assert.match(app12.nodes.get('daily-next').textContent, /단어 학습/);
+
+// Make everything overdue, reload, and review
+const overdue = JSON.parse(srsBefore);
+Object.values(overdue.cards).forEach(c => { c.due = '2000-01-01'; });
+app12.storage.set('jlpt_srs_v1', JSON.stringify(overdue));
+const app13 = boot(app12.storage);
+const t13 = app13.test;
+t13.openDaily();
+const queue = [...t13.daily.queue];
+assert.equal(queue.length, 20);
+assert.deepEqual(queue.map(id => overdue.cards[id].box), [...queue.map(id => overdue.cards[id].box)].sort(), 'lower boxes first');
+assert.equal(app13.nodes.get('daily-details').hidden, true, 'answer hidden before reveal');
+assert.equal(app13.nodes.get('daily-right').hidden, true, 'no self-assessment before reveal');
+assert.equal(app13.nodes.get('daily-word').textContent.length > 0, true);
+t13.answerDaily(true);
+assert.equal(t13.daily.index, 0, 'cannot grade before revealing');
+t13.revealDaily();
+assert.equal(app13.nodes.get('daily-details').hidden, false);
+assert(app13.nodes.get('daily-details').children.length >= 6, 'full learning information after reveal');
+assert.equal(app13.nodes.get('daily-right').hidden, false);
+const first = queue[0], second = queue[1];
+t13.answerDaily(true);
+t13.revealDaily(); t13.answerDaily(false);
+const srs2 = JSON.parse(app13.storage.get('jlpt_srs_v1'));
+assert.deepEqual([srs2.cards[first].box, srs2.cards[first].due], [overdue.cards[first].box + 1, JPCore.addDays(todayStr, JPCore.INTERVAL_DAYS[overdue.cards[first].box + 1])]);
+assert.deepEqual([srs2.cards[second].box, srs2.cards[second].due], [1, JPCore.addDays(todayStr, 1)]);
+const app14 = boot(app13.storage);
+app14.test.openDaily();
+assert.equal(app14.test.daily.queue.length, 18, 'refresh keeps progress; reviewed cards leave today\'s queue');
+
+// Dashboard
+app14.test.showHome();
+assert.equal(app14.nodes.get('dash-due').textContent, 18);
+assert.equal(app14.nodes.get('dash-tracked').textContent, '3%');
+assert.equal(app14.nodes.get('dash-days').children.length, 15);
+assert.match(app14.nodes.get('dash-recent').textContent, /2일차 60점/);
+assert.match(app14.nodes.get('today-start').textContent, /복습 18개부터/);
+assert.equal(app14.test.recommendedDay(), 'Day 1', 'first day without a passing score');
+
+// Upgrading user: exam history but no review store → seeded once from first attempts
+const legacyStorage = new Map([...app12.storage].filter(([k]) => k !== 'jlpt_srs_v1'));
+const app15 = boot(legacyStorage);
+app15.test.showHome();
+const seeded = JSON.parse(app15.storage.get('jlpt_srs_v1'));
+assert.equal(Object.keys(seeded.cards).length, 20, 'past exam results seed the schedule');
+assert.deepEqual(seeded.applied, [savedAttemptId]);
+
+// Corrupted review store is kept aside, app keeps working
+const app16 = boot(new Map([['jlpt_srs_v1', '{broken']]));
+app16.test.showHome();
+assert.equal(app16.storage.get('jlpt_srs_v1_corrupt'), '{broken');
+assert.equal(app16.nodes.get('notice').hidden, false);
+assert.equal(app16.nodes.get('dash-due').textContent, 0);
+
+console.log('PASS 10: Exam → Leitner (correct 2 / wrong 1), retry isolated from history and schedule, Daily Review hides answers and moves boxes, refresh-safe, dashboard, history seeding, corrupted store kept aside.');
+
+// Test 11: Context questions (F11) from the real reviewed example sentences in vocab-content.js
+const CONTENT = require('../vocab-content.js');
+const app17 = boot(new Map(), true, { JP_CONTENT: CONTENT });
+const t17 = app17.test;
+let contextCount = 0;
+for (let d = 1; d <= 15; d++) {
+  const key = 'Day ' + d;
+  for (const q of t17.buildExamQuestions(key, 0).filter(x => x.type === 3 && x.v === undefined)) {
+    contextCount++;
+    const ex = q.word.examples[0];
+    assert.equal(ex.status, 'verified');
+    assert.equal(ex.review, 'ai');
+    assert.equal(q.prompt.split('（　）').length, 2, `${key} ${q.word.word}: exactly one blank`);
+    assert.equal(q.prompt.replace('（　）', q.word.word), ex.ja, 'blank sits where the word was');
+    assert.equal(q.ko, ex.ko);
+    assert.equal(new Set(q.options).size, 4);
+    assert.equal(q.options[q.correctAnswerIndex], q.word.word);
+    const pool = t17.modes.vocab.data[key];
+    q.options.filter(o => o !== q.word.word).forEach(o => {
+      const other = pool.find(w => w.word === o);
+      assert(other, 'distractors are same-day words');
+      assert.notEqual(other.hiragana, q.word.hiragana, `${q.word.word}/${o}: same reading would also fit`);
+      assert(!ex.ja.includes(o), 'distractor not already in the sentence');
+    });
+    const back = t17.rehydrateAttempt({ day: key, items: [{ t: 3, w: q.word.word, o: q.options, a: 0 }] }).questions[0];
+    assert.equal(back.prompt, q.prompt, 'context question survives save/rehydrate');
+  }
+}
+assert(contextCount > 150, `context questions are generated across all days (got ${contextCount})`);
+// Candidate (unreviewed) examples never become scored questions
+t17.modes.vocab.data['Day 1'].forEach(w => { if (w.examples) w.examples[0].status = 'candidate'; });
+assert(!t17.buildExamQuestions('Day 1', 0).some(q => q.type === 3 && q.v === undefined), 'candidates are not used for scoring');
+// Without the content file the app still works and simply has no context questions
+assert(!boot().test.buildExamQuestions('Day 1', 0).some(q => q.type === 3 && q.v === undefined));
+console.log(`PASS 11: ${contextCount} context questions from reviewed examples — one blank, 4 distinct same-day options, no same-reading/synonym distractor, rehydration; candidates and missing content skipped.`);
+
+// Test 12: Import replaces only jlpt_ keys, and a write failure mid-import restores the original records
+(async () => {
+  const fileOf = obj => ({ text: async () => JSON.stringify(obj) });
+  const original = new Map([['jlpt_srs_v1', '{"version":1,"cards":{},"applied":["old"]}'], ['jlpt_study_v1_Day1', '{"version":1,"index":3}'], ['other_app', 'keep']]);
+  const backupObj = { app: 'jpstudy', version: 1, data: { jlpt_srs_v1: '{"version":1,"cards":{},"applied":["new"]}', jlpt_exam_v1_Day2: '{"version":2,"day":"Day 2","attempts":[]}' } };
+  let reloaded = 0;
+  const ok = boot(new Map(original), true, { location: { reload: () => { reloaded++; } } });
+  await ok.test.importBackup(fileOf(backupObj));
+  assert.equal(reloaded, 1);
+  assert.equal(ok.storage.get('jlpt_srs_v1'), backupObj.data.jlpt_srs_v1);
+  assert.equal(ok.storage.has('jlpt_study_v1_Day1'), false, 'old jlpt_ keys not in the backup are removed');
+  assert.equal(ok.storage.get('other_app'), 'keep', 'other apps untouched');
+
+  const failing = new Map(original);
+  const bad = boot(failing, true, { location: { reload: () => { reloaded++; } } });
+  failing.failOn = key => key === 'jlpt_exam_v1_Day2';
+  await bad.test.importBackup(fileOf(backupObj));
+  failing.failOn = null;
+  assert.equal(reloaded, 1, 'no reload after a failed import');
+  assert.deepEqual([...failing].sort(), [...original].sort(), 'original records restored exactly');
+  assert.equal(bad.nodes.get('notice').hidden, false);
+
+  const declined = boot(new Map(original), false, { location: { reload: () => { reloaded++; } } });
+  await declined.test.importBackup(fileOf(backupObj));
+  assert.deepEqual([...declined.storage].sort(), [...original].sort(), 'cancelled import changes nothing');
+  console.log('PASS 12: Backup import replaces only jlpt_ records, rolls back exactly on a write failure, and does nothing when cancelled.');
+  console.log('ALL EXAM TESTS PASSED SUCCESSFULLY!');
+})().catch(e => { console.error(e); process.exit(1); });

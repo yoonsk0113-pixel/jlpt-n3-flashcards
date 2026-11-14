@@ -101,7 +101,10 @@
     .details { list-style:none; margin:0; padding:0 24px 26px; }
     .details li { border-top:1px solid #eaebe4; padding-top:12px; margin-top:12px; font-size:15px; white-space:pre-wrap; }
     .details strong { display:block; color:var(--muted); font-size:12px; margin-bottom:3px; font-weight:600; }
-    .details li:last-child { color:var(--green); }
+    .details li.mnemonic { color:var(--green); }
+    /* 발음(한국어 표기)은 읽기 바로 밑의 보조 정보: 히라가나 → 뜻 위계가 끊기지 않게 */
+    .details li.sub-answer { border-top:0; margin-top:2px; padding-top:0; color:var(--muted); font-size:14px; }
+    .details li.sub-answer strong { display:inline; margin:0 6px 0 0; }
     .vocab-card .front { min-height:170px; padding:24px 20px; }
     .vocab-card .word { font-size:clamp(38px,10vw,58px); }
     .vocab-card .details .key-answer { font-size:20px; font-weight:650; }
@@ -123,6 +126,33 @@
     .result dt { color:var(--muted); font-size:14px; }
     .result dd { margin:0; font-weight:750; font-variant-numeric:tabular-nums; }
     .result .action + .action { margin-top:12px; }
+    .today { margin:0 0 30px; }
+    .daily-limit { display:flex; flex-wrap:wrap; align-items:center; gap:8px 16px; margin:0 0 16px; font-size:14px; }
+    .daily-limit select { min-height:44px; max-width:100%; padding:8px 12px; border:1px solid var(--line); border-radius:12px; background:#fffefa; color:var(--ink); font:inherit; }
+    .daily-limit select:focus-visible { outline:3px solid var(--green); outline-offset:3px; }
+    .dash-stats { grid-template-columns:repeat(4,1fr); margin:16px 0 18px; }
+    .dash-stats .stat { padding-left:12px; }
+    .dash-stats .stat dd { font-size:21px; color:var(--ink); }
+    .today-steps { display:grid; gap:8px; margin:12px 0 0; padding:0; list-style:none; }
+    .today-step { display:flex; align-items:center; gap:12px; width:100%; min-height:52px; padding:10px 14px; border:1px solid var(--line); border-radius:12px; background:#fffefa; text-align:left; font-weight:700; }
+    @media (hover:hover) { .today-step:hover { background:#f5f6f2; border-color:#abb4a6; } }
+    .today-step-num { display:inline-grid; place-items:center; flex-shrink:0; width:26px; height:26px; border-radius:50%; background:#e8ebe4; color:var(--green); font-size:13px; font-weight:750; }
+    .today-step-meta { margin-left:auto; color:var(--muted); font-size:13px; font-weight:600; text-align:right; }
+    .dash-days-head { margin-top:26px; flex-wrap:wrap; row-gap:2px; }
+    .dash-days-head h2 { white-space:nowrap; }
+    .dash-days { display:grid; grid-template-columns:repeat(5,1fr); gap:10px 12px; margin:14px 0 12px; padding:0; list-style:none; }
+    .dash-days li { display:grid; gap:4px; font-size:12px; color:var(--muted); font-variant-numeric:tabular-nums; }
+    .dash-days progress { height:6px; margin:0; }
+    .backup { display:flex; flex-wrap:wrap; gap:4px 20px; margin-top:6px; }
+    .vocab-related { display:flex; flex-wrap:wrap; gap:6px; margin-top:4px; }
+    .vocab-related span.chip { display:inline-flex; align-items:baseline; gap:6px; padding:3px 10px; border:1px solid var(--line); border-radius:8px; background:#fffefa; font-size:13px; }
+    .vocab-related .chip-reading { color:var(--green); font-weight:600; }
+    .vocab-related .chip-meaning { color:var(--muted); }
+    .example-status { margin-left:6px; font-size:12px; color:var(--muted); }
+    .details .example-status { display:inline-block; margin-left:8px; padding:0 6px; border:1px solid var(--line); border-radius:6px; font-size:11px; font-weight:600; }
+    .details .example-ja, .details .example-reading, .details .example-ko { display:block; }
+    .details .example-reading { margin-top:2px; color:var(--green); font-size:13px; }
+    .details .example-ko { margin-top:2px; color:var(--muted); font-size:14px; }
     .notice { margin-top:18px; padding:14px 16px; background:#f4e3df; color:#852c29; border-radius:10px; font-size:13px; }
     .sr-only { position:absolute; width:1px; height:1px; padding:0; margin:-1px; overflow:hidden; clip-path:inset(50%); white-space:nowrap; border:0; }
     .reveal { animation:reveal .22s cubic-bezier(.16,1,.3,1); }
@@ -222,12 +252,53 @@
   <p id="notice" class="notice" role="alert" hidden></p>
   <section id="home">
     <div class="intro"><h1 id="home-title" tabindex="-1">오늘은 무엇을<br>익혀 볼까요?</h1><p>단어의 뜻부터 한자의 읽기까지.<br>모르는 것만 한 번 더, 나만의 속도로 공부해요.</p></div>
+    <section class="today" aria-labelledby="today-title">
+      <div class="section-head"><h2 id="today-title">오늘의 학습</h2><span id="today-date" class="small"></span></div>
+      <dl class="stats dash-stats">
+        <div class="stat"><dt>오늘 복습</dt><dd id="dash-due">0</dd></div>
+        <div class="stat"><dt>학습 진행</dt><dd id="dash-tracked">0%</dd></div>
+        <div class="stat"><dt>복습 중</dt><dd id="dash-reviewing">0</dd></div>
+        <div class="stat"><dt>완료</dt><dd id="dash-completed">0</dd></div>
+      </dl>
+      <button id="today-start" class="action primary full">오늘 학습 시작</button>
+      <div class="daily-limit"><label for="daily-limit">하루 복습 한도</label><select id="daily-limit" aria-label="하루 복습 한도: 일일 최대 복습 카드 수"><option value="20">20개</option><option value="30">30개</option><option value="50">50개</option><option value="all">전체</option></select></div>
+      <ol class="today-steps" aria-label="추천 학습 순서">
+        <li><button id="step-review" class="today-step"><span class="today-step-num" aria-hidden="true">1</span>오늘의 복습<span id="step-review-meta" class="today-step-meta"></span></button></li>
+        <li><button id="step-learn" class="today-step"><span class="today-step-num" aria-hidden="true">2</span>단어 학습<span id="step-learn-meta" class="today-step-meta"></span></button></li>
+        <li><button id="step-exam" class="today-step"><span class="today-step-num" aria-hidden="true">3</span>일차 시험<span id="step-exam-meta" class="today-step-meta"></span></button></li>
+      </ol>
+      <div class="section-head dash-days-head"><h2>일차별 정착</h2><span class="small">시험·복습에서 한 번 이상 맞힌 단어</span></div>
+      <ol id="dash-days" class="dash-days"></ol>
+      <p id="dash-recent" class="small"></p>
+    </section>
     <div class="mode-options">
       <button id="vocab-mode" class="mode-button vocab-mode"><strong>일본어 단어 공부하기</strong><span>읽기와 뜻을 함께 · 15일 과정</span></button>
       <button id="exam-mode" class="mode-button exam-mode"><strong>JLPT 어휘 시험</strong><span>N3 실전 유형 4지선다 · 15일 과정</span></button>
       <button id="kanji-mode" class="mode-button kanji-mode"><strong>한자 공부하기</strong><span>음독부터 훈독까지 · 10일 과정</span></button>
     </div>
     <p class="note">각 과정의 학습 기록과 시험 결과는 브라우저에 안전하게 저장돼요.<br>단어 15일차 · 750개와 한자 10일차 · 60자가 준비되어 있어요.</p>
+    <div class="backup"><button id="backup-export" class="back-link">학습 기록 내보내기</button><button id="backup-import" class="back-link">학습 기록 가져오기</button><input id="backup-file" type="file" accept="application/json,.json" hidden></div>
+  </section>
+  <section id="daily" hidden>
+    <nav class="navigation" aria-label="복습 탐색"><button id="daily-back" class="back-link">← 홈으로</button></nav>
+    <div class="learning-head"><h1 id="daily-title" tabindex="-1">오늘의 복습</h1><span id="daily-box" class="round"></span></div>
+    <div class="progress-meta"><span id="daily-position"></span><span id="daily-remaining"></span></div>
+    <progress id="daily-progress" value="0" max="1" aria-label="오늘의 복습 진행률"></progress>
+    <article id="daily-card" class="card vocab-card" aria-label="복습 카드">
+      <div class="front"><h2 id="daily-word" class="word japanese" lang="ja" tabindex="-1"></h2><button id="daily-speak" class="speak-btn" type="button" aria-label="단어 발음 듣기" hidden></button></div>
+      <ul id="daily-details" class="details" hidden></ul>
+    </article>
+    <div id="daily-actions" class="actions">
+      <button id="daily-reveal" class="action primary full" aria-keyshortcuts="Space Enter">정답 확인</button>
+      <button id="daily-wrong" class="action unknown" aria-keyshortcuts="ArrowLeft" hidden>틀렸다</button>
+      <button id="daily-right" class="action known" aria-keyshortcuts="ArrowRight" hidden>맞았다</button>
+    </div>
+    <p id="daily-help" class="help">뜻과 읽기를 떠올린 뒤 정답을 확인하세요 · Space: 정답 확인 · ←: 틀렸다 · →: 맞았다</p>
+    <div id="daily-done" class="result" hidden>
+      <h2 id="daily-done-title" tabindex="-1"></h2><p id="daily-done-text"></p>
+      <button id="daily-next" class="action primary full"></button>
+      <button id="daily-home" class="action neutral full">홈으로</button>
+    </div>
   </section>
   <section id="menu" hidden>
     <div class="intro"><h1 id="menu-title" tabindex="-1">일본어 단어 공부하기</h1><p>학습할 일차를 골라 주세요.<br>모르는 항목만 모아, 모두 익힐 때까지 반복해요.</p></div>
@@ -263,7 +334,7 @@
       <div class="word-line"><h2 id="study-word" class="word japanese" lang="ja" tabindex="-1"></h2><button id="study-speak" class="speak-btn" type="button" aria-label="단어 발음 듣기" hidden></button></div>
       <ul id="study-details" class="details"></ul>
     </article>
-    <div id="study-end" class="study-end" hidden><p class="small">이 일차의 마지막 카드예요.</p><button id="study-first" class="back-link">처음부터 보기</button></div>
+    <div id="study-end" class="study-end" hidden><p class="small">이 일차의 마지막 카드예요.</p><button id="study-first" class="back-link">처음부터 보기</button><button id="study-exam" class="back-link">이 일차 시험 보기</button></div>
     <nav class="study-nav" aria-label="카드 이동">
       <button id="study-prev" class="action neutral" aria-keyshortcuts="ArrowLeft">← 이전</button>
       <span id="study-bottom-position" class="study-position"></span>
@@ -311,6 +382,7 @@
     <div class="exam-score-box"><div id="exam-score-percent" class="exam-score-percent"></div><div id="exam-score-ratio" class="exam-score-ratio"></div></div>
     <dl><div><dt>일차</dt><dd id="exam-result-day"></dd></div><div><dt>응시 일시</dt><dd id="exam-result-date"></dd></div><div><dt>총 문항</dt><dd id="exam-result-total"></dd></div><div><dt>맞힌 문항</dt><dd id="exam-result-correct"></dd></div><div><dt>틀린 단어</dt><dd id="exam-result-wrong"></dd></div></dl>
     <button id="exam-review-start" class="action primary full">오답 단어 카드로 복습</button>
+    <button id="exam-retry-wrong" class="action neutral full" hidden>틀린 문제 다시 풀기</button>
     <button id="exam-retake" class="action neutral full">다시 시험 보기</button>
     <div class="section-head exam-result-head"><h2>문항별 해설</h2><button id="exam-toggle-answers" class="back-link" aria-pressed="false">틀린 문제만 보기</button></div>
     <div id="exam-all-answers" class="exam-result-list"></div>
@@ -346,6 +418,8 @@
   </div>
   <p id="announcement" class="sr-only" role="status" aria-live="polite" aria-atomic="true"></p>
 </main>
+<script src="./core.js"></script>
+<script src="./vocab-content.js"></script>
 <script>
 const wordData = {
   "Day 1": [
@@ -7641,8 +7715,19 @@ const kanjiData = {
     kanji: { title:'한자 공부하기', short:'한자', data:kanjiData, front:'kanji', dayCount:10,
       fields:[['meaning','뜻'],['onyomi','음독'],['kunyomi','훈독'],['examples','대표 단어'],['mnemonic','암기법']] }
   };
-  const ids = ["study","study-back","study-title","study-position","study-progress","study-card","study-word","study-details","study-end","study-first","study-prev","study-next","study-bottom-position","reveal","previous","assessment-status","remaining-label","unknown-label","result-message","result-total-label","result-rounds-label","result-first-label","review-unknown","result-previous","restart","home","home-button","home-title","notice","menu","learning","result","days","day-summary","menu-title","day-title","round","remaining","known-count","unknown-count","position","round-hint","progress","card","word","details","unknown","known","next","keyboard-help","result-title","result-total","result-rounds","result-first","announcement","exam-mode","exam-menu","exam-menu-title","exam-day-summary","exam-days","exam","exam-back","exam-day-title","exam-type-badge","exam-position","exam-unanswered-count","exam-progress","exam-instruction","exam-stem","exam-options","exam-prev","exam-next","exam-submit","exam-result","exam-result-title","exam-result-message","exam-score-percent","exam-score-ratio","exam-result-day","exam-result-date","exam-result-total","exam-result-correct","exam-result-wrong","exam-review-start","exam-toggle-answers","exam-all-answers","exam-retake","exam-result-menu","exam-review","exam-review-back","exam-review-title","exam-review-position","exam-review-progress","exam-review-empty","exam-review-empty-back","exam-review-card","exam-review-badge","exam-review-word","word-speak","study-speak","exam-review-speak","exam-review-details","exam-review-end","exam-review-finish","exam-review-nav","exam-review-prev","exam-review-bottom-position","exam-review-next","exam-modal","exam-modal-title","exam-modal-desc","exam-modal-step","exam-modal-batch","exam-feedback","exam-feedback-status","exam-feedback-body","exam-modal-cancel"];
+  const ids = ["study","study-back","study-title","study-position","study-progress","study-card","study-word","study-details","study-end","study-first","study-prev","study-next","study-bottom-position","reveal","previous","assessment-status","remaining-label","unknown-label","result-message","result-total-label","result-rounds-label","result-first-label","review-unknown","result-previous","restart","home","home-button","home-title","notice","menu","learning","result","days","day-summary","menu-title","day-title","round","remaining","known-count","unknown-count","position","round-hint","progress","card","word","details","unknown","known","next","keyboard-help","result-title","result-total","result-rounds","result-first","announcement","exam-mode","exam-menu","exam-menu-title","exam-day-summary","exam-days","exam","exam-back","exam-day-title","exam-type-badge","exam-position","exam-unanswered-count","exam-progress","exam-instruction","exam-stem","exam-options","exam-prev","exam-next","exam-submit","exam-result","exam-result-title","exam-result-message","exam-score-percent","exam-score-ratio","exam-result-day","exam-result-date","exam-result-total","exam-result-correct","exam-result-wrong","exam-review-start","exam-toggle-answers","exam-all-answers","exam-retake","exam-result-menu","exam-review","exam-review-back","exam-review-title","exam-review-position","exam-review-progress","exam-review-empty","exam-review-empty-back","exam-review-card","exam-review-badge","exam-review-word","today-date","dash-due","dash-tracked","dash-reviewing","dash-completed","today-start","step-review","step-review-meta","step-learn","step-learn-meta","step-exam","step-exam-meta","dash-days","dash-recent","backup-export","backup-import","backup-file","daily","daily-back","daily-title","daily-box","daily-position","daily-remaining","daily-progress","daily-card","daily-word","daily-speak","daily-details","daily-actions","daily-reveal","daily-wrong","daily-right","daily-help","daily-done","daily-done-title","daily-done-text","daily-next","daily-home","study-exam","exam-retry-wrong","word-speak","study-speak","exam-review-speak","exam-review-details","exam-review-end","exam-review-finish","exam-review-nav","exam-review-prev","exam-review-bottom-position","exam-review-next","exam-modal","exam-modal-title","exam-modal-desc","exam-modal-step","exam-modal-batch","exam-feedback","exam-feedback-status","exam-feedback-body","exam-modal-cancel"];
   const ui = Object.fromEntries(ids.map(id => [id, document.getElementById(id)]));
+  // F01: 모든 단어에 일차·원래 순서 기반 안정 ID(d01-001)를 붙입니다. 기존 7개 필드는 바꾸지 않습니다.
+  const VOCAB_INDEX = JPCore.assignIds(modes.vocab.data);
+  const VOCAB_LIST = [...VOCAB_INDEX.values()].map(v => v.entry);
+  // F10: 단어별 예문·연어(vocab-content.js)를 선택 필드로 붙입니다. 데이터에 이미 있는 필드는 덮어쓰지 않습니다.
+  const CONTENT = typeof JP_CONTENT !== 'undefined' ? JP_CONTENT : { VOCAB_CONTENT: {}, REVIEWED_BY_HUMAN: [] };
+  for (const [id, [ja, reading, ko, collocation]] of Object.entries(CONTENT.VOCAB_CONTENT)) {
+    const entry = VOCAB_INDEX.get(id)?.entry;
+    if (!entry) continue;
+    entry.examples ??= [{ ja, reading, ko, status: 'verified', review: CONTENT.REVIEWED_BY_HUMAN.includes(id) ? 'human' : 'ai' }];
+    entry.collocations ??= [collocation];
+  }
   let mode = null, config = null, data = {}, days = [], fields = [];
   let saved = new Map(), signatures = new Map();
   let day = null, state = null, view = 'home';
@@ -7676,6 +7761,7 @@ const kanjiData = {
   function showHome(focus = true) {
     if (state) persist();
     setView('home');
+    renderDashboard();
     if (focus) ui['home-title'].focus();
   }
 
@@ -7723,7 +7809,7 @@ const kanjiData = {
   function setView(nextView) {
     view = nextView;
     ui['home-button'].hidden = view === 'home';
-    for (const name of ['home','menu','learning','study','result','exam-menu','exam','exam-result','exam-review']) ui[name].hidden = name !== view;
+    for (const name of ['home','menu','learning','study','result','exam-menu','exam','exam-result','exam-review','daily']) ui[name].hidden = name !== view;
   }
 
   function showMenu(focus = true) {
@@ -7999,6 +8085,9 @@ const kanjiData = {
 
   function assessVocab(known) {
     if (view !== 'learning' || !state.revealed || state.done) return;
+    const id = data[day][state.queue[state.index]].id, store = getSrs();
+    store.cards[id] = JPCore.examUpdate(store.cards[id], known, today());
+    saveSrs();
     state.mastery[state.queue[state.index]] = known ? 'known' : 'unknown';
     state.index++; state.revealed = false;
     state.done = state.index === state.queue.length;
@@ -8031,9 +8120,67 @@ const kanjiData = {
       if (['hiragana','onyomi','kunyomi'].includes(field)) { value.lang = 'ja'; value.className = 'japanese'; }
       if (field === 'examples') value.className = 'japanese';
       if (['hiragana','meaning'].includes(field)) li.className = 'key-answer';
+      else if (field === 'pronunciation') li.className = 'sub-answer';
+      else if (field === 'mnemonic') li.className = 'mnemonic';
       li.append(strong,value); fragment.append(li);
+      if (field === 'kanji_composition') fragment.append(...optionalDetails(word));
     });
+    if (visible && fields === modes.vocab.fields && VOCAB_INDEX.get(word.id)?.entry === word) fragment.append(...relatedDetail(word));
     target.replaceChildren(fragment);
+  }
+
+  // F09/F10/F13: 데이터에 있을 때만 보이는 선택 필드. 검수 전 예문은 그렇다고 표시합니다.
+  function optionalDetails(word) {
+    const rows = [];
+    const row = (title, text, ja = false, note = '') => {
+      const li = document.createElement('li'), strong = document.createElement('strong'), value = document.createElement('span');
+      strong.textContent = title; value.textContent = text;
+      if (ja) { value.lang = 'ja'; value.className = 'japanese'; }
+      li.append(strong, value);
+      if (note) { const n = document.createElement('span'); n.className = 'example-status'; n.textContent = note; li.append(n); }
+      rows.push(li);
+    };
+    if (typeof word.part_of_speech === 'string' && word.part_of_speech) row('품사', word.part_of_speech);
+    if (Array.isArray(word.collocations) && word.collocations.length) row('연어', word.collocations.join(' / '), true);
+    for (const ex of Array.isArray(word.examples) ? word.examples : []) {
+      if (!ex || typeof ex.ja !== 'string' || typeof ex.ko !== 'string') continue;
+      const li = document.createElement('li'), strong = document.createElement('strong');
+      strong.textContent = '예문';
+      const label = ex.status !== 'verified' ? '검수 전' : ex.review === 'ai' ? 'AI 검수' : '';
+      if (label) { const n = document.createElement('span'); n.className = 'example-status'; n.textContent = label; strong.append(n); }
+      const sentence = document.createElement('span'); sentence.lang = 'ja'; sentence.className = 'example-ja japanese'; sentence.textContent = ex.ja;
+      li.append(strong, sentence);
+      if (typeof ex.reading === 'string' && ex.reading) { const r = document.createElement('span'); r.lang = 'ja'; r.className = 'example-reading japanese'; r.textContent = ex.reading; li.append(r); }
+      const ko = document.createElement('span'); ko.className = 'example-ko'; ko.textContent = ex.ko; li.append(ko);
+      rows.push(li);
+    }
+    const hint = typeof word.sino_korean === 'string' && word.sino_korean ? null : JPCore.sinoKoreanHint(word);
+    if (typeof word.sino_korean === 'string' && word.sino_korean) row('한자어 대응', word.sino_korean);
+    else if (hint) {
+      const parts = [];
+      if (hint.pairs) parts.push(hint.pairs.map(p => `${p.kanji}(${p.ko}) ${p.kana}`).join(' · ') + `  — ${hint.rules.join(', ')} (경향이며 예외가 있어요)`);
+      if (hint.warning) parts.push('주의: ' + hint.warning);
+      row('한자음 대응', parts.join('\n'));
+    }
+    if (typeof word.cognate === 'string' && word.cognate) row('어원 메모', word.cognate);
+    return rows;
+  }
+
+  // F12: 같은 한자를 쓰는 단어 최대 3개(이미 복습 중인 단어 우선). 단어장 데이터만 씁니다.
+  function relatedDetail(word) {
+    const related = JPCore.relatedWords(word, VOCAB_LIST, new Set(Object.keys(getSrs().cards)));
+    if (!related.length) return [];
+    const li = document.createElement('li'), strong = document.createElement('strong'), list = document.createElement('span');
+    strong.textContent = '같은 한자 단어'; list.className = 'vocab-related';
+    for (const { entry } of related) {
+      const chip = document.createElement('span'); chip.className = 'chip';
+      const form = document.createElement('span'); form.lang = 'ja'; form.className = 'japanese'; form.textContent = entry.word;
+      const reading = document.createElement('span'); reading.lang = 'ja'; reading.className = 'chip-reading japanese'; reading.textContent = entry.hiragana;
+      const meaning = document.createElement('span'); meaning.className = 'chip-meaning'; meaning.textContent = entry.meaning;
+      chip.append(form, reading, meaning); list.append(chip);
+    }
+    li.append(strong, list);
+    return [li];
   }
 
   function renderVocab() {
@@ -8252,7 +8399,8 @@ const kanjiData = {
   // 問題3은 prompt에 （　）를 정확히 1개, 問題1·2·4는 밑줄 대상 【…】을 1개, 問題5는 prompt가 【단어】입니다.
   // ko는 지문(問題5는 바르게 쓰인 정답 문장)의 한국어 해석, vocab은 그 문장에 나오는 핵심 단어 '표기|읽기|뜻'(가나 단어는 읽기 생략),
   // 問題5의 notes[i]는 선지별 해설입니다. notes는 선지와 함께 섞입니다.
-  const vq = (wordId, type, prompt, ko, vocab, options, notes) => ({ wordId, type, prompt, ko, vocab, options, correctAnswerIndex: 0, ...(notes && { notes }) });
+  // review: 'ai'는 AI 검수 완료(2026-11-14, 문법·N3 수준·오답 명확성), 사람이 검수하면 'human'으로 바꿉니다.
+  const vq = (wordId, type, prompt, ko, vocab, options, notes) => ({ wordId, type, prompt, ko, vocab, options, correctAnswerIndex: 0, review: 'ai', ...(notes && { notes }) });
 
   const verifiedQuestions = {
     'Day 1': [
@@ -8275,9 +8423,9 @@ const kanjiData = {
       vq(41, 5, '【惜しい】', '1점만 더 냈으면 이길 수 있었는데, 정말 아까운 경기였다.', ['点|てん|점(점수)', '勝つ|かつ|이기다', '試合|しあい|시합, 경기'], [
         'あと1点で勝てたのに、本当に惜しい試合だった。',
         'この料理は惜しいので、もう一杯ください。',
-        '駅まで遠いので、歩くのは惜しいです。',
+        '熱があって、体がとても惜しい。',
         '彼はいつも惜しい服を着ている。'
-      ], ['아깝게 놓친 상황(아쉽다)에 바르게 쓰였어요.', '맛있다는 「おいしい」예요. 惜しい는 「아깝다·아쉽다」예요.', '힘들다는 「大変だ・つらい」가 자연스러워요.', '옷의 모양에는 「おしゃれな」 등을 써요.']),
+      ], ['아깝게 놓친 상황(아쉽다)에 바르게 쓰였어요.', '맛있다는 「おいしい」예요. 惜しい는 「아깝다·아쉽다」예요.', '몸이 나른한 것은 「だるい」예요.', '옷의 모양에는 「おしゃれな」 등을 써요.']),
       vq(32, 1, '駅から会社まで、【往復】で一時間かかる。', '역에서 회사까지 왕복으로 한 시간 걸린다.', ['駅|えき|역', '会社|かいしゃ|회사', '一時間|いちじかん|한 시간'], ['おうふく', 'おおふく', 'おうぶく', 'おふく']),
       vq(30, 2, 'みんなで日本チームを【おうえん】しました。', '다 같이 일본 팀을 응원했습니다.', ['日本|にほん|일본', 'チーム||팀'], ['応援', '応媛', '央援', '応緩'])
     ],
@@ -8315,9 +8463,9 @@ const kanjiData = {
         '受付で、参加者に資料を配った。',
         '毎朝、犬を公園に配っている。',
         '先生の話をよく配ってください。',
-        '机の上の本を棚に配った。'
-      ], ['여러 사람에게 나눠 준다는 뜻으로 바르게 쓰였어요.', '개를 데려가는 것은 「連れて行く(つれていく)」예요.', '말을 듣는 것은 「聞く(きく)」예요.', '책을 늘어놓는 것은 「並べる(ならべる)」예요.']),
-      vq(23, 1, '毎朝、【血圧】を測っている。', '매일 아침 혈압을 재고 있다.', ['毎朝|まいあさ|매일 아침', '測る|はかる|재다'], ['けつあつ', 'けつあく', 'ちあつ', 'けっあつ']),
+        '財布を家に配ってきてしまった。'
+      ], ['여러 사람에게 나눠 준다는 뜻으로 바르게 쓰였어요.', '개를 데려가는 것은 「連れて行く(つれていく)」예요.', '말을 듣는 것은 「聞く(きく)」예요.', '두고 오는 것은 「忘れる(わすれる)」예요.']),
+      vq(23, 1, '毎朝、【血圧】を測っている。', '매일 아침 혈압을 재고 있다.', ['毎朝|まいあさ|매일 아침', '測る|はかる|재다'], ['けつあつ', 'けつあく', 'ちあつ', 'けいあつ']),
       vq(15, 2, '消防士は毎日きびしい【くんれん】をしている。', '소방관은 매일 혹독한 훈련을 하고 있다.', ['消防士|しょうぼうし|소방관', 'きびしい||엄격하다, 혹독하다'], ['訓練', '訓錬', '訊練', '訓連'])
     ],
     'Day 6': [
@@ -8348,7 +8496,7 @@ const kanjiData = {
     ],
     'Day 8': [
       vq(2, 3, '彼は（　）を言って、みんなを笑わせた。', '그는 농담을 해서 모두를 웃게 했다.', ['言う|いう|말하다', '笑う|わらう|웃다'], ['冗談', '情報', '招待', '診断']),
-      vq(46, 3, '（　）作った料理なのに、だれも食べてくれなかった。', '모처럼 만든 요리인데 아무도 먹어 주지 않았다.', ['作る|つくる|만들다', '料理|りょうり|요리', '食べる|たべる|먹다'], ['せっかく', 'ずいぶん', '少しも', 'すきずき']),
+      vq(46, 3, '（　）作った料理なのに、だれも食べてくれなかった。', '모처럼 만든 요리인데 아무도 먹어 주지 않았다.', ['作る|つくる|만들다', '料理|りょうり|요리', '食べる|たべる|먹다'], ['せっかく', 'ちっとも', '少しも', 'すきずき']),
       vq(16, 4, '学生たちは【真剣】に先生の話を聞いていた。', '학생들은 진지하게 선생님의 이야기를 듣고 있었다.', ['学生|がくせい|학생', '話|はなし|이야기', '聞く|きく|듣다'], ['まじめ', '静か', '簡単', '自由']),
       vq(23, 5, '【慎重】', '중요한 서류이니 신중하게 확인해 주세요.', ['大事|だいじ|중요함', '書類|しょるい|서류', '確認|かくにん|확인'], [
         '大事な書類なので、慎重に確認してください。',
@@ -8399,7 +8547,7 @@ const kanjiData = {
       vq(42, 2, '映画を見て、【なみだ】が出た。', '영화를 보고 눈물이 났다.', ['映画|えいが|영화', '出る|でる|나오다'], ['涙', '波', '浪', '戻'])
     ],
     'Day 12': [
-      vq(41, 3, '忙しかったが、その仕事を（　）ことにした。', '바빴지만 그 일을 맡기로 했다.', ['忙しい|いそがしい|바쁘다', '仕事|しごと|일'], ['引き受ける', '引っ張る', '乗り換える', '話し合う']),
+      vq(41, 3, '忙しかったが、その仕事を（　）ことにした。', '바빴지만 그 일을 맡기로 했다.', ['忙しい|いそがしい|바쁘다', '仕事|しごと|일'], ['引き受ける', '引っ張る', '乗り換える', '追い抜く']),
       vq(44, 3, 'このくつは、私の足に（　）だ。', '이 신발은 내 발에 딱 맞는다.', ['くつ||신발', '足|あし|발'], ['ぴったり', 'のろのろ', 'ばらばら', 'はっきり']),
       vq(0, 4, '私は数学が【苦手です】。', '저는 수학을 잘 못합니다.', ['数学|すうがく|수학'], ['得意ではありません', '大好きです', 'よくわかります', '必要です']),
       vq(16, 5, '【延ばす】', '몸 상태가 좋지 않아서 출발을 하루 미뤘다.', ['体調|たいちょう|몸 상태', '悪い|わるい|나쁘다', '出発|しゅっぱつ|출발'], [
@@ -8486,6 +8634,7 @@ const kanjiData = {
     if (q.notes !== undefined && (!Array.isArray(q.notes) || q.notes.length !== options.length || q.notes.some(n => typeof n !== 'string' || !n.trim()))) errors.push('notes는 선지마다 해설 문자열이 있어야 함');
     if (q.type === 5 && !q.notes) errors.push('問題5에는 선지별 해설(notes)이 필요함');
     if (typeof q.ko !== 'string' || !HANGUL_RE.test(q.ko)) errors.push('지문의 한국어 해석(ko)이 필요함');
+    if (!['ai', 'human'].includes(q.review)) errors.push('검수 상태(review: ai|human)가 필요함');
     if (!Array.isArray(q.vocab) || !q.vocab.length) errors.push('문장 속 단어 주석(vocab)이 필요함');
 
     for (const text of [prompt, meta.instruction, ...normalized]) {
@@ -8604,7 +8753,9 @@ const kanjiData = {
   // 자동 생성 문항(問題1·2)의 지시문·지문·정답. 단어만 있는 지문이라 밑줄 지시문 대신 이 문구를 씁니다.
   const GENERATED = {
     1: { instruction: '次のことばの読み方として最もよいものを、1・2・3・4から一つえらびなさい。', prompt: w => w.word, answer: w => w.hiragana },
-    2: { instruction: 'このことばを漢字で書くとき、最もよいものをえらびなさい。', prompt: w => w.hiragana, answer: w => w.word }
+    2: { instruction: 'このことばを漢字で書くとき、最もよいものをえらびなさい。', prompt: w => w.hiragana, answer: w => w.word },
+    // F11: 검증된(status: 'verified') 예문이 있는 단어만. 예문이 없으면 prompt가 null이라 출제·복원하지 않습니다.
+    3: { instruction: EXAM_TYPES[3].instruction, prompt: w => JPCore.verifiedExample(w)?.ja.replace(w.word, EXAM_BLANK) ?? null, answer: w => w.word }
   };
 
   // 출제와 기록 복원이 함께 쓰는 문항 생성기: 같은 입력이면 같은 문항이 나옵니다.
@@ -8625,7 +8776,8 @@ const kanjiData = {
     const word = modes.vocab.data[dayKey][wordId], g = GENERATED[type];
     return {
       wordId, type, typeName: EXAM_TYPES[type].typeName, instruction: g.instruction,
-      prompt: g.prompt(word), options, correctAnswerIndex: options.indexOf(g.answer(word)), word
+      prompt: g.prompt(word), options, correctAnswerIndex: options.indexOf(g.answer(word)), word,
+      ...(type === 3 && { ko: JPCore.verifiedExample(word).ko })
     };
   }
 
@@ -8649,7 +8801,7 @@ const kanjiData = {
         questions.push(verifiedQuestion(dayKey, it.v, it.o));
       } else {
         const g = GENERATED[it.t];
-        if (!g || it.o.length !== 4 || !it.o.includes(g.answer(words[wordId]))) continue;
+        if (!g || it.o.length !== 4 || !it.o.includes(g.answer(words[wordId])) || g.prompt(words[wordId]) === null) continue;
         questions.push(generatedQuestion(dayKey, it.t, wordId, it.o));
       }
       userAnswers.push(it.a);
@@ -8677,14 +8829,23 @@ const kanjiData = {
     let typeToggle = 0;
     for (const w of pool) {
       if (targetCount > 0 && questions.length >= targetCount) break;
-      const isType1 = typeToggle % 2 === 0;
-      typeToggle++;
+      // 자동 문항은 문맥(F11)·읽기·표기를 번갈아 냅니다. 문맥 문항을 만들 수 없으면 읽기로 대신합니다.
+      const slot = typeToggle++ % 3;
+      const context = slot === 0 ? JPCore.contextQuestion(w, words) : null;
+      if (context) {
+        questions.push(generatedQuestion(dayKey, 3, w.wordId, shuffle([context.answer, ...context.distractors])));
+        usedWordIds.add(w.wordId);
+        continue;
+      }
+      const isType1 = slot !== 2;
 
       if (isType1) {
         const candidates = eligibleKanji.filter(o => o.hiragana !== w.hiragana && !Array.from(w.word).some(ch => o.word.includes(ch)));
-        const distinctDists = [];
-        const seen = new Set([w.hiragana]);
+        // F06: 탁음·장음·촉음을 바꾼 그럴듯한 읽기를 먼저 쓰고, 모자라면 같은 일차 다른 단어의 실제 읽기로 채웁니다.
+        const distinctDists = JPCore.readingDistractors(w.word, w.hiragana);
+        const seen = new Set([w.hiragana, ...distinctDists]);
         for (const c of shuffle(candidates)) {
+          if (distinctDists.length === 3) break;
           if (!seen.has(c.hiragana)) {
             seen.add(c.hiragana);
             distinctDists.push(c.hiragana);
@@ -8980,7 +9141,7 @@ const kanjiData = {
     const answered = userAnswers.filter(a => a !== -1).length;
     const correctSoFar = questions.filter((x, i) => userAnswers[i] === x.correctAnswerIndex).length;
 
-    ui['exam-day-title'].textContent = `${label(activeExam.day)} · ${step ? '한 문제씩' : '한 번에 풀기'}`;
+    ui['exam-day-title'].textContent = `${label(activeExam.day)} · ${activeExam.retry ? '틀린 문제 다시 풀기' : step ? '한 문제씩' : '한 번에 풀기'}`;
     ui['exam-type-badge'].textContent = q.typeName;
     ui['exam-position'].textContent = `문제 ${current + 1} / ${total}`;
     ui['exam-unanswered-count'].textContent = step
@@ -9050,7 +9211,7 @@ const kanjiData = {
 
   function submitExam() {
     if (!activeExam) return;
-    const { questions, userAnswers, mode, day: examDay } = activeExam;
+    const { questions, userAnswers, mode, day: examDay, retry } = activeExam;
     const total = questions.length;
     const unanswered = userAnswers.filter(a => a === -1).length;
     if (mode === 'step' && unanswered) return;
@@ -9072,10 +9233,16 @@ const kanjiData = {
       correctCount,
       scorePercent: Math.round((correctCount / total) * 100),
       wrongWordIds,
-      items: questions.map((q, i) => examItem(q, userAnswers[i]))
+      items: questions.map((q, i) => examItem(q, userAnswers[i])),
+      ...(retry && { retry: true })
     };
 
-    saveExamAttempt(examDay, attempt);
+    // 틀린 문제 다시 풀기는 연습이라 시험 기록과 복습 일정에 넣지 않습니다(진행도 부풀리기 방지).
+    if (!retry) {
+      saveExamAttempt(examDay, attempt);
+      const store = getSrs();
+      if (JPCore.applyExam(store, attempt.id, examResults(questions, userAnswers), today())) saveSrs();
+    }
     lastExamAttempt = attempt;
     activeExam = null;
     showExamResult(attempt);
@@ -9085,7 +9252,7 @@ const kanjiData = {
     setView('exam-result');
     const isPerfect = attempt.wrongWordIds.length === 0;
 
-    ui['exam-result-title'].textContent = `${label(attempt.day)} 모의시험 결과`;
+    ui['exam-result-title'].textContent = `${label(attempt.day)} ${attempt.retry ? '다시 풀기' : '모의시험'} 결과`;
     ui['exam-result-message'].textContent = isPerfect
       ? '완벽해요! 모든 문제를 맞혔습니다.'
       : attempt.scorePercent >= 80
@@ -9104,6 +9271,9 @@ const kanjiData = {
     ui['exam-result-correct'].textContent = `${attempt.correctCount}문제`;
     ui['exam-result-wrong'].textContent = `${attempt.wrongWordIds.length}개 단어 (${attempt.totalCount - attempt.correctCount}문제)`;
 
+    if (attempt.retry) ui['exam-result-message'].textContent += ' 다시 풀기 결과는 시험 기록과 복습 일정에 반영되지 않아요.';
+    ui['exam-retry-wrong'].hidden = isPerfect;
+    ui['exam-retry-wrong'].textContent = `틀린 문제 다시 풀기 (${attempt.totalCount - attempt.correctCount}문제)`;
     ui['exam-review-start'].disabled = isPerfect;
     ui['exam-review-start'].textContent = isPerfect ? '오답이 없어요 (만점!)' : `오답 단어 카드로 복습 (${attempt.wrongWordIds.length}개)`;
 
@@ -9262,6 +9432,246 @@ const kanjiData = {
   }, { passive: true });
   ui['exam-review-card'].addEventListener('pointercancel', () => { examReviewSwipe = null; }, { passive: true });
 
+  // ---------- 간격 반복 진행도(F02/F03): 단어 내용과 분리해 jlpt_srs_v1에 저장 ----------
+  const SRS_KEY = 'jlpt_srs_v1';
+  const LIMIT_KEY = 'jlpt_daily_limit_v1';
+  const limitControl = document.getElementById('daily-limit');
+  let reviewLimit = 30;
+  try { reviewLimit = JPCore.dailyLimit(JSON.parse(localStorage.getItem(LIMIT_KEY) || 'null')); }
+  catch { warn('복습 한도를 불러오지 못해 30개로 시작해요.'); }
+  limitControl.value = reviewLimit === Infinity ? 'all' : String(reviewLimit);
+  limitControl.addEventListener('change', () => {
+    reviewLimit = JPCore.dailyLimit(limitControl.value);
+    limitControl.value = reviewLimit === Infinity ? 'all' : String(reviewLimit);
+    try { localStorage.setItem(LIMIT_KEY, JSON.stringify(reviewLimit === Infinity ? 'all' : reviewLimit)); }
+    catch { warn('복습 한도를 저장하지 못했어요. 새로고침 후 설정이 유지되지 않을 수 있어요.'); }
+    renderDashboard();
+  });
+  let srsStore = null;
+  const today = () => JPCore.localDate();
+  const examResults = (questions, answers) => questions.map((q, i) => ({ id: q.word?.id, correct: answers[i] === q.correctAnswerIndex }));
+
+  function getSrs() {
+    if (srsStore) return srsStore;
+    let raw = null;
+    try { raw = localStorage.getItem(SRS_KEY); } catch { warn('복습 기록을 불러오지 못했어요. 브라우저 저장 설정을 확인해 주세요.'); }
+    if (raw === null) {
+      srsStore = seedSrsFromHistory();
+      if (Object.keys(srsStore.cards).length) saveSrs();
+      return srsStore;
+    }
+    try { srsStore = JPCore.normalizeStore(JSON.parse(raw), VOCAB_INDEX); }
+    catch {
+      // 손상된 원본은 지우지 않고 따로 보관한 뒤 새로 시작합니다.
+      try { localStorage.setItem(SRS_KEY + '_corrupt', raw); } catch { /* 보관 실패해도 앱은 계속 */ }
+      warn('복습 기록을 읽지 못해 새로 시작해요. 이전 기록은 따로 보관했어요.');
+      srsStore = JPCore.normalizeStore(null);
+    }
+    return srsStore;
+  }
+
+  function saveSrs() {
+    try { localStorage.setItem(SRS_KEY, JSON.stringify(srsStore)); }
+    catch { warn('복습 기록을 저장하지 못했어요. 브라우저 저장 공간을 확인해 주세요.'); }
+  }
+
+  // 복습 기록이 처음 생길 때, 이미 본 시험(첫 응시)을 시간순으로 반영해 일정을 이어받습니다.
+  function seedSrsFromHistory() {
+    const store = JPCore.normalizeStore(null);
+    const attempts = Array.from({ length: modes.vocab.dayCount }, (_, i) => 'Day ' + (i + 1))
+      .flatMap(key => loadExamHistory(key).attempts.map(at => ({ ...at, day: at.day || key })))
+      .filter(at => !at.retry && !Number.isNaN(Date.parse(at.createdAt)))
+      .sort((a, b) => Date.parse(a.createdAt) - Date.parse(b.createdAt));
+    for (const at of attempts) {
+      const { questions, userAnswers } = rehydrateAttempt(at);
+      JPCore.applyExam(store, at.id || `${at.day}@${at.createdAt}`, examResults(questions, userAnswers), JPCore.localDate(new Date(at.createdAt)));
+    }
+    return store;
+  }
+
+  // ---------- 오늘의 복습(F04): 단어만 보고 떠올린 뒤 정답 확인 → 맞았다/틀렸다 ----------
+  let daily = null;
+
+  function openDaily() {
+    if (state) persist();
+    fields = modes.vocab.fields;
+    const date = today();
+    const { queue, total } = JPCore.dueQueue(getSrs().cards, date, reviewLimit);
+    daily = { date, queue, total, index: 0, revealed: false, right: 0, wrong: 0 };
+    setView('daily');
+    renderDaily();
+    (daily.queue.length ? ui['daily-title'] : ui['daily-done-title']).focus();
+  }
+
+  function renderDaily() {
+    const { queue, index } = daily, done = index >= queue.length;
+    ui['daily-card'].hidden = ui['daily-actions'].hidden = ui['daily-help'].hidden = done;
+    ui['daily-done'].hidden = !done;
+    ui['daily-position'].textContent = queue.length ? `${Math.min(index + 1, queue.length)} / ${queue.length}` : '0 / 0';
+    ui['daily-remaining'].textContent = `남은 복습 ${queue.length - index}개`;
+    ui['daily-progress'].max = Math.max(1, queue.length);
+    ui['daily-progress'].value = index;
+    if (done) {
+      ui['daily-box'].textContent = '완료';
+      const next = recommendedDay();
+      ui['daily-done-title'].textContent = queue.length ? '오늘 복습을 마쳤어요' : '오늘 복습할 단어가 없어요';
+      ui['daily-done-text'].textContent = queue.length
+        ? `맞았다 ${daily.right}개 · 틀렸다 ${daily.wrong}개.` + (daily.total > queue.length ? ` 한도를 넘은 ${daily.total - queue.length}개는 복습 대기열에 남아 있어요.` : ' 틀린 단어는 내일 다시 나와요.')
+        : '시험에서 맞히거나 틀린 단어가 복습 일정에 들어와요. 다음 단계로 넘어가 보세요.';
+      ui['daily-next'].textContent = `다음: ${label(next)} 단어 학습`;
+      return;
+    }
+    const id = queue[index], entry = VOCAB_INDEX.get(id).entry, card = getSrs().cards[id];
+    ui['daily-box'].textContent = `${card.box}상자${card.difficult ? ' · 어려운 단어' : ''}`;
+    ui['daily-word'].textContent = entry.word;
+    ui['daily-speak'].hidden = !canSpeak;
+    ui['daily-speak'].classList.toggle('is-off', !daily.revealed);
+    ui['daily-card'].classList.toggle('is-back', daily.revealed);
+    renderDetails(entry, daily.revealed, ui['daily-details']);
+    ui['daily-reveal'].hidden = daily.revealed;
+    ui['daily-wrong'].hidden = ui['daily-right'].hidden = !daily.revealed;
+  }
+
+  function revealDaily() {
+    if (view !== 'daily' || !daily || daily.revealed || daily.index >= daily.queue.length) return;
+    daily.revealed = true;
+    renderDaily();
+    ui['daily-right'].focus();
+  }
+
+  function answerDaily(correct) {
+    if (view !== 'daily' || !daily?.revealed || daily.index >= daily.queue.length) return;
+    const store = getSrs(), id = daily.queue[daily.index];
+    store.cards[id] = JPCore.reviewUpdate(store.cards[id], correct, today()); // 자정을 넘겨 답해도 실제 날짜 기준
+    saveSrs();
+    daily[correct ? 'right' : 'wrong']++;
+    daily.index++;
+    daily.revealed = false;
+    renderDaily();
+    ui.announcement.textContent = correct ? '맞았다로 기록했어요.' : '틀렸다로 기록했어요. 내일 다시 나와요.';
+    (daily.index < daily.queue.length ? ui['daily-word'] : ui['daily-done-title']).focus();
+  }
+
+  // ---------- 홈 대시보드(F07): 복습 → 학습 → 시험 순서를 한 화면에서 시작 ----------
+  const dayKeys = () => Array.from({ length: modes.vocab.dayCount }, (_, i) => 'Day ' + (i + 1));
+
+  // 최근 점수가 80점 미만이거나 아직 안 본 첫 일차, 모두 80점 이상이면 최근 점수가 가장 낮은 일차.
+  function recommendedDay() {
+    const keys = dayKeys(), scores = keys.map(k => loadExamHistory(k).attempts.at(-1)?.scorePercent);
+    const open = keys.find((_, i) => scores[i] === undefined || scores[i] < 80);
+    return open || keys[scores.indexOf(Math.min(...scores))];
+  }
+
+  function renderDashboard() {
+    const date = today(), store = getSrs(), sum = JPCore.summarize(store.cards, date), next = recommendedDay();
+    const [, m, d] = date.split('-').map(Number);
+    ui['today-date'].textContent = `${m}월 ${d}일`;
+    const reviewToday = JPCore.dueQueue(store.cards, date, reviewLimit).queue.length;
+    ui['dash-due'].textContent = reviewToday;
+    ui['dash-tracked'].textContent = `${Math.round((sum.tracked / VOCAB_INDEX.size) * 100)}%`;
+    ui['dash-reviewing'].textContent = sum.reviewing;
+    ui['dash-completed'].textContent = sum.completed;
+    ui['today-start'].textContent = reviewToday ? `오늘 학습 시작 · 복습 ${reviewToday}개부터` : `오늘 학습 시작 · ${label(next)} 학습`;
+    ui['step-review-meta'].textContent = reviewToday ? `${reviewToday}개` : '없음';
+    ui['step-learn-meta'].textContent = label(next);
+    const lastScore = loadExamHistory(next).attempts.at(-1)?.scorePercent;
+    ui['step-exam-meta'].textContent = `${label(next)} · ${lastScore === undefined ? '미응시' : `최근 ${lastScore}점`}`;
+
+    const settled = new Map();
+    for (const [id, card] of Object.entries(store.cards)) if (card.box >= 2) settled.set(id.slice(0, 3), (settled.get(id.slice(0, 3)) || 0) + 1);
+    const frag = document.createDocumentFragment();
+    dayKeys().forEach((key, i) => {
+      const total = modes.vocab.data[key]?.length || 0, count = settled.get(`d${String(i + 1).padStart(2, '0')}`) || 0;
+      const li = document.createElement('li'), name = document.createElement('span'), bar = document.createElement('progress');
+      name.textContent = `${i + 1}일차 ${total ? Math.round((count / total) * 100) : 0}%`;
+      bar.max = Math.max(1, total); bar.value = count;
+      bar.setAttribute('aria-label', `${label(key)} ${total}개 중 ${count}개 정착`);
+      li.append(name, bar); frag.append(li);
+    });
+    ui['dash-days'].replaceChildren(frag);
+
+    const recent = dayKeys().flatMap(k => loadExamHistory(k).attempts.map(at => ({ ...at, day: at.day || k })))
+      .sort((a, b) => String(b.createdAt).localeCompare(String(a.createdAt))).slice(0, 3);
+    ui['dash-recent'].textContent = recent.length ? '최근 시험 · ' + recent.map(at => `${label(at.day)} ${at.scorePercent}점`).join(' · ') : '최근 시험 · 아직 응시한 시험이 없어요';
+  }
+
+  function startLearn(key) { selectMode('vocab'); openStudy(key); }
+  function startDayExam(key) { openExamMenu(false); showExamModal(key); }
+
+  // 틀린 문제만 새 순서로 다시 풉니다(한 문제씩, 기록·복습 일정에는 반영 안 함).
+  function retryWrong() {
+    if (!lastExamAttempt) return;
+    const { day: dayKey } = lastExamAttempt;
+    const { questions, userAnswers } = rehydrateAttempt(lastExamAttempt);
+    const wrong = questions.filter((q, i) => userAnswers[i] !== q.correctAnswerIndex);
+    if (!wrong.length) return;
+    const fresh = shuffle(wrong.map(q => q.v !== undefined ? verifiedQuestion(dayKey, q.v, shuffle([...q.order])) : generatedQuestion(dayKey, q.type, q.wordId, shuffle([...q.options]))));
+    activeExam = { day: dayKey, mode: 'step', retry: true, questions: fresh, currentIndex: 0, userAnswers: new Array(fresh.length).fill(-1) };
+    setView('exam');
+    renderExamQuestion();
+    ui['exam-day-title'].focus();
+  }
+
+  // ---------- 학습 기록 내보내기·가져오기(F15) ----------
+  function exportBackup() {
+    const entries = [];
+    try { for (let i = 0; i < localStorage.length; i++) { const key = localStorage.key(i); entries.push([key, localStorage.getItem(key)]); } }
+    catch { warn('학습 기록을 읽지 못해 내보내지 못했어요.'); return; }
+    const url = URL.createObjectURL(new Blob([JSON.stringify(JPCore.makeBackup(entries), null, 1)], { type: 'application/json' }));
+    const link = el('a');
+    link.href = url; link.download = `jpstudy-backup-${today()}.json`;
+    document.body.append(link); link.click(); link.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 0);
+    ui.announcement.textContent = '학습 기록을 파일로 내보냈어요.';
+  }
+
+  async function importBackup(file) {
+    const result = JPCore.parseBackup(await file.text());
+    if (!result.ok) { warn('기록을 가져오지 못했어요. ' + result.error); return; }
+    const count = Object.keys(result.data).length;
+    if (!confirm(`파일의 학습 기록 ${count}개 항목으로 지금 기록을 바꿀까요?\n현재 이 브라우저의 학습 기록은 사라져요. 필요하면 먼저 내보내기로 백업하세요.`)) return;
+    const previous = [];
+    try {
+      for (let i = 0; i < localStorage.length; i++) { const key = localStorage.key(i); if (/^jlpt_/.test(key)) previous.push([key, localStorage.getItem(key)]); }
+      previous.forEach(([key]) => localStorage.removeItem(key));
+      for (const [key, value] of Object.entries(result.data)) localStorage.setItem(key, value);
+    } catch {
+      // 쓰기 도중 실패하면 원래 기록을 되돌립니다.
+      try { Object.keys(result.data).forEach(key => localStorage.removeItem(key)); previous.forEach(([key, value]) => localStorage.setItem(key, value)); } catch { /* 복구도 실패하면 아래 안내 */ }
+      warn('기록을 저장하지 못해 원래 기록을 유지했어요. 브라우저 저장 공간을 확인해 주세요.');
+      return;
+    }
+    location.reload();
+  }
+
+  ui['today-start'].addEventListener('click', () => (JPCore.dueQueue(getSrs().cards, today(), 1).total ? openDaily() : startLearn(recommendedDay())));
+  ui['step-review'].addEventListener('click', openDaily);
+  ui['step-learn'].addEventListener('click', () => startLearn(recommendedDay()));
+  ui['step-exam'].addEventListener('click', () => startDayExam(recommendedDay()));
+  ui['daily-back'].addEventListener('click', () => showHome());
+  ui['daily-home'].addEventListener('click', () => showHome());
+  ui['daily-next'].addEventListener('click', () => startLearn(recommendedDay()));
+  ui['daily-reveal'].addEventListener('click', revealDaily);
+  ui['daily-right'].addEventListener('click', event => { if (event.detail < 2) answerDaily(true); });
+  ui['daily-wrong'].addEventListener('click', event => { if (event.detail < 2) answerDaily(false); });
+  ui['daily-speak'].addEventListener('click', () => daily && speakJa(VOCAB_INDEX.get(daily.queue[daily.index])?.entry.hiragana));
+  ui['study-exam'].addEventListener('click', () => startDayExam(studyDay));
+  ui['exam-retry-wrong'].addEventListener('click', retryWrong);
+  ui['backup-export'].addEventListener('click', exportBackup);
+  ui['backup-import'].addEventListener('click', () => ui['backup-file'].click());
+  ui['backup-file'].addEventListener('change', () => {
+    const file = ui['backup-file'].files?.[0];
+    ui['backup-file'].value = '';
+    if (file) importBackup(file).catch(() => warn('기록 파일을 읽지 못했어요.'));
+  });
+  document.addEventListener('keydown', event => {
+    if (view !== 'daily' || !daily || event.repeat || event.altKey || event.ctrlKey || event.metaKey || event.isComposing || /^(INPUT|TEXTAREA|SELECT)$/.test(event.target.tagName)) return;
+    const key = event.key;
+    if ((key === ' ' || key === 'Enter') && event.target.closest?.('button')) return;
+    if (!daily.revealed && (key === ' ' || key === 'Enter')) { event.preventDefault(); revealDaily(); }
+    else if (daily.revealed && (key === 'ArrowLeft' || key === 'ArrowRight')) { event.preventDefault(); answerDaily(key === 'ArrowRight'); }
+  });
+
   showHome(false);
 })();
 </script>
@@ -9272,3 +9682,4 @@ const kanjiData = {
 </script>
 </body>
 </html>
+
