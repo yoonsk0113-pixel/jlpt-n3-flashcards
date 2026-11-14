@@ -1,6 +1,6 @@
 // 오프라인 지원: 앱 파일을 미리 캐시하고, 온라인이면 최신 파일을 받아 캐시를 갱신하며, 오프라인이면 캐시로 응답합니다.
 // CSS·화면·학습 데이터는 index.html, 학습 도메인 로직은 core.js, 예문·연어는 vocab-content.js에 있습니다. ASSETS를 바꿀 때는 CACHE 이름의 숫자를 올립니다.
-const CACHE = 'jlpt-n3-v4';
+const CACHE = 'jlpt-n3-v5';
 const ASSETS = ['./', './index.html', './core.js', './vocab-content.js', './manifest.webmanifest', './icon-180.png', './icon-192.png', './icon-512.png'];
 
 self.addEventListener('install', event => {
@@ -10,7 +10,7 @@ self.addEventListener('install', event => {
 self.addEventListener('activate', event => {
   event.waitUntil(
     caches.keys()
-      .then(keys => Promise.all(keys.filter(key => key !== CACHE).map(key => caches.delete(key))))
+      .then(keys => Promise.all(keys.filter(key => key.startsWith('jlpt-n3-') && key !== CACHE).map(key => caches.delete(key))))
       .then(() => self.clients.claim())
   );
 });
@@ -28,8 +28,8 @@ self.addEventListener('fetch', event => {
         }
         return response;
       })
-      .catch(() => caches.match(request, { ignoreSearch: true })
-        .then(hit => hit || (request.mode === 'navigate' ? caches.match('./index.html') : Response.error())))
+      .catch(() => caches.open(CACHE).then(cache => cache.match(request, { ignoreSearch: true })
+        .then(hit => hit || (request.mode === 'navigate' ? cache.match('./index.html') : Response.error()))))
   );
 });
 

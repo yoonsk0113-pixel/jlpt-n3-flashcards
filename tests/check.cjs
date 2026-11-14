@@ -232,3 +232,29 @@ assert.equal(quiz.storage.get('jlpt_srs_v1'),beforeKanji);
  console.log('PASS: limit choices, immediate counts/queues, reload, invalid and unavailable storage, backup import, quiz SRS, repeat grading, midnight and kanji isolation.');
 })().catch(error=>{console.error(error);process.exitCode=1});
 
+// Execute the real worker lifecycle with network failure and exact current app bytes.
+(async()=>{
+ const handlers={}, buckets=new Map([['jlpt-n3-v1',new Map()],['another-app',new Map()]]);
+ const origin='https://example.test', key=value=>new URL(typeof value==='string'?value:value.url,origin+'/').pathname;
+ const cacheApi=name=>({
+   async addAll(urls){for(const url of urls)buckets.get(name).set(key(url),fs.readFileSync(path.join(root,url==='./'?'index.html':url)));},
+   async match(request){return buckets.get(name).get(key(request));},
+   async put(request,response){buckets.get(name).set(key(request),response);}
+ });
+ const caches={async open(name){if(!buckets.has(name))buckets.set(name,new Map());return cacheApi(name);},async keys(){return [...buckets.keys()]},async delete(name){return buckets.delete(name)}};
+ let skipped=false,claimed=false;
+ vm.runInNewContext(sw,{URL,caches,fetch:async()=>{throw Error('offline')},Response:{error:()=>({error:true})},self:{location:{origin},addEventListener:(name,fn)=>handlers[name]=fn,skipWaiting:async()=>{skipped=true},clients:{claim:async()=>{claimed=true}}}});
+ let pending;handlers.install({waitUntil:p=>{pending=p}});await pending;assert(skipped);
+ handlers.activate({waitUntil:p=>{pending=p}});await pending;assert(claimed);
+ assert(!buckets.has('jlpt-n3-v1'));assert(buckets.has('another-app'),'do not erase unrelated app caches');
+ for(const file of ['index.html','core.js','vocab-content.js']){
+   handlers.fetch({request:{method:'GET',url:origin+'/'+file+'?offline=1',mode:'same-origin'},respondWith:p=>{pending=p}});
+   assert.deepEqual(await pending,fs.readFileSync(path.join(root,file)),file+' offline bytes match release source');
+ }
+ handlers.fetch({request:{method:'GET',url:origin+'/missing-route',mode:'navigate'},respondWith:p=>{pending=p}});
+ assert.deepEqual(await pending,fs.readFileSync(path.join(root,'index.html')),'offline navigation falls back to app shell');
+ handlers.fetch({request:{method:'GET',url:origin+'/missing.js',mode:'same-origin'},respondWith:p=>{pending=p}});
+ assert.equal((await pending).error,true,'missing scripts never receive HTML');
+ console.log('PASS: PWA install/activate, current index/core/content bytes offline, navigation fallback, missing script failure, unrelated cache preservation.');
+})().catch(error=>{console.error(error);process.exitCode=1});
+
