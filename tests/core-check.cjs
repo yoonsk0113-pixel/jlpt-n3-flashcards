@@ -175,4 +175,65 @@ for (const bad of ['nope', '{}', JSON.stringify({ ...backup, app: 'x' }), JSON.s
   assert.equal(C.parseBackup(bad).ok, false, bad.slice(0, 30));
 }
 console.log('PASS 9: 백업은 jlpt_ 키만, 복원 전 형식·키·값 JSON 검증으로 손상 파일 거부.');
+// 10. 이독(복수 정답) 전수 검사: 단어마다 생성 가능한 모든 음운 함정을 모아 다른 유효 읽기와 겹치지 않는지 확인
+let decoyTotal = 0;
+const vocabWords = new Set(all.map(w => w.word));
+Object.keys(C.ALT_READINGS).forEach(word => assert(vocabWords.has(word), `이독 목록의 ${word}는 단어장에 있어야 함`));
+for (const w of all) {
+  if (!/[一-鿿]/.test(w.word)) continue;
+  const pool = new Set();
+  let x = 3;
+  for (let k = 0; k < 200; k++) C.readingDistractors(w.word, w.hiragana, () => ((x = (x * 16807) % 2147483647) - 1) / 2147483646).forEach(d => pool.add(d));
+  decoyTotal += pool.size;
+  for (const d of pool) {
+    assert(!(C.ALT_READINGS[w.word] || []).includes(d), `${w.word}: ${d}는 다른 유효 읽기`);
+    assert(!all.some(o => o.word === w.word && o !== w && o.hiragana === d), `${w.word}: 같은 표기 다른 단어의 읽기`);
+  }
+}
+assert(!C.readingDistractors('内側', 'うちがわ', () => 0).includes('うちかわ'), '실제로 발견된 충돌(内側/うちかわ) 제외');
+assert(decoyTotal > 1000);
+console.log(`PASS 10: 음운 함정 후보 ${decoyTotal}개 전수 검사 — 이독 예외 ${Object.keys(C.ALT_READINGS).length}단어와 충돌 0건(内側→うちかわ 제외 처리).`);
 console.log('ALL CORE CHECKS PASSED');
+
+// 11. 검수 콘텐츠(vocab-content.js) 750개 전수 검증 + F11·F13
+const { VOCAB_CONTENT } = require('../vocab-content.js');
+assert.equal(Object.keys(VOCAB_CONTENT).length, 750, '모든 단어에 예문');
+const kata = s => (s.match(/[ァ-ヶー]+/g) || []).join(',');
+const punct = s => (s.match(/[、。？！]/g) || []).join('');
+for (const [id, [ja, reading, ko, colloc]] of Object.entries(VOCAB_CONTENT)) {
+  const entry = index.get(id)?.entry;
+  assert(entry, `${id}: 단어장에 있는 ID`);
+  const merged = { ...entry, examples: [{ ja, reading, ko, status: 'verified', review: 'ai' }], collocations: [colloc] };
+  assert.deepEqual(C.validateEntry(merged), [], `${id}: 스키마`);
+  assert(ja.includes(entry.word), `${id}: 예문에 사전형 「${entry.word}」`);
+  assert(!/[一-鿿々]/.test(reading), `${id}: 후리가나에 한자 없음`);
+  assert.equal(kata(reading), kata(ja), `${id}: 가타카나 보존`);
+  assert.equal(punct(reading), punct(ja), `${id}: 문장부호 일치`);
+  if (!/^[ァ-ヶー]+$/.test(entry.word)) assert(reading.includes(entry.hiragana.replace(/だ$/, '')), `${id}: 후리가나에 단어 읽기`);
+  assert(/[가-힣]/.test(ko), `${id}: 해석`);
+  const stem = entry.word.replace(/だ$/, '').replace(/[ぁ-ゖ]+$/, '') || entry.word.slice(0, -1);
+  assert(colloc.includes(stem), `${id}: 연어에 단어`);
+}
+// 같은 읽기·겹치는 뜻의 단어는 문맥 문항 오답에서 빠짐 (替える·換える·変える = かえる, 바꾸다)
+const day3 = wordData['Day 3'].map(w => ({ ...w, examples: VOCAB_CONTENT[w.id] ? [{ ja: VOCAB_CONTENT[w.id][0], ko: VOCAB_CONTENT[w.id][2], status: 'verified' }] : undefined }));
+const kaeru = day3.find(w => w.word === '変える');
+for (let k = 0; k < 50; k++) {
+  const q = C.contextQuestion(kaeru, day3, rng);
+  if (q) q.distractors.forEach(d => assert(!['替える', '換える'].includes(d), '동음·동의어는 오답으로 쓰지 않음'));
+}
+// F13: 받침·초성이 모두 맞는 음독 한자어만 힌트, 혼합·훈독 읽기는 제외, 거짓 짝은 주의 문구
+const hintOf = word => C.sinoKoreanHint(all.find(w => w.word === word));
+assert.deepEqual(hintOf('解決').pairs.map(p => p.kana), ['かい', 'けつ']);
+assert.deepEqual(hintOf('結構').pairs.map(p => p.kana), ['けっ', 'こう'], '촉음화(ㄹ→っ)');
+assert(hintOf('結構').warning, '거짓 짝 주의');
+for (const w of ['両替', '仲間', '見本', '夕日', '窓口']) assert.equal(hintOf(w)?.pairs ?? null, null, `${w}: 음독 한자어가 아니면 힌트 없음`);
+assert.equal(hintOf('大家').pairs, null);
+assert(hintOf('大家').warning.includes('집주인'));
+let hinted = 0;
+for (const w of all) {
+  const h = C.sinoKoreanHint(w);
+  if (!h?.pairs) continue;
+  hinted++;
+  assert.equal(h.pairs.map(p => p.kana).join(''), w.hiragana.replace(/だ$/, ''), `${w.word}: 정렬이 읽기 전체를 덮음`);
+}
+console.log(`PASS 11: 콘텐츠 750개(예문·후리가나·해석·연어) 전수 검증, 동음·동의어 오답 배제, 한자음 힌트 ${hinted}단어(혼합·훈독 제외)·거짓 짝 ${Object.keys(C.SINO_FALSE_FRIENDS).length}개.`);

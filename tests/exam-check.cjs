@@ -527,24 +527,41 @@ assert.equal(app16.nodes.get('dash-due').textContent, 0);
 
 console.log('PASS 10: Exam → Leitner (correct 2 / wrong 1), retry isolated from history and schedule, Daily Review hides answers and moves boxes, refresh-safe, dashboard, history seeding, corrupted store kept aside.');
 
-// Test 11: Context questions come only from verified examples, and survive save/rehydrate (test-only fixture sentence)
-const app17 = boot();
+// Test 11: Context questions (F11) from the real reviewed example sentences in vocab-content.js
+const CONTENT = require('../vocab-content.js');
+const app17 = boot(new Map(), true, { JP_CONTENT: CONTENT });
 const t17 = app17.test;
-const target17 = t17.modes.vocab.data['Day 1'].find(w => w.word === '穴');
-target17.examples = [{ ja: '道に大きな穴がある。', ko: '길에 큰 구멍이 있다.', status: 'candidate' }];
-assert(!t17.buildExamQuestions('Day 1', 0).some(q => q.type === 3 && q.word === target17 && q.v === undefined), 'candidate examples never become scored questions');
-target17.examples[0].status = 'verified';
-const ctxQ = t17.buildExamQuestions('Day 1', 0).find(q => q.type === 3 && q.v === undefined);
-assert(ctxQ, 'a verified example yields a context question');
-assert.equal(ctxQ.prompt, '道に大きな（　）がある。');
-assert.equal(ctxQ.options[ctxQ.correctAnswerIndex], '穴');
-assert.equal(new Set(ctxQ.options).size, 4);
-assert.equal(ctxQ.ko, '길에 큰 구멍이 있다.');
-const reCtx = t17.rehydrateAttempt({ day: 'Day 1', items: [{ t: 3, w: '穴', o: ctxQ.options, a: 0 }] }).questions;
-assert.equal(reCtx[0].prompt, ctxQ.prompt);
-delete target17.examples;
-assert.equal(t17.rehydrateAttempt({ day: 'Day 1', items: [{ t: 3, w: '穴', o: ctxQ.options, a: 0 }] }).questions.length, 0, 'example removed → stored item skipped safely');
-console.log('PASS 11: Context questions only from verified examples (candidates excluded), one blank, 4 distinct options, rehydration and safe skip.');
+let contextCount = 0;
+for (let d = 1; d <= 15; d++) {
+  const key = 'Day ' + d;
+  for (const q of t17.buildExamQuestions(key, 0).filter(x => x.type === 3 && x.v === undefined)) {
+    contextCount++;
+    const ex = q.word.examples[0];
+    assert.equal(ex.status, 'verified');
+    assert.equal(ex.review, 'ai');
+    assert.equal(q.prompt.split('（　）').length, 2, `${key} ${q.word.word}: exactly one blank`);
+    assert.equal(q.prompt.replace('（　）', q.word.word), ex.ja, 'blank sits where the word was');
+    assert.equal(q.ko, ex.ko);
+    assert.equal(new Set(q.options).size, 4);
+    assert.equal(q.options[q.correctAnswerIndex], q.word.word);
+    const pool = t17.modes.vocab.data[key];
+    q.options.filter(o => o !== q.word.word).forEach(o => {
+      const other = pool.find(w => w.word === o);
+      assert(other, 'distractors are same-day words');
+      assert.notEqual(other.hiragana, q.word.hiragana, `${q.word.word}/${o}: same reading would also fit`);
+      assert(!ex.ja.includes(o), 'distractor not already in the sentence');
+    });
+    const back = t17.rehydrateAttempt({ day: key, items: [{ t: 3, w: q.word.word, o: q.options, a: 0 }] }).questions[0];
+    assert.equal(back.prompt, q.prompt, 'context question survives save/rehydrate');
+  }
+}
+assert(contextCount > 150, `context questions are generated across all days (got ${contextCount})`);
+// Candidate (unreviewed) examples never become scored questions
+t17.modes.vocab.data['Day 1'].forEach(w => { if (w.examples) w.examples[0].status = 'candidate'; });
+assert(!t17.buildExamQuestions('Day 1', 0).some(q => q.type === 3 && q.v === undefined), 'candidates are not used for scoring');
+// Without the content file the app still works and simply has no context questions
+assert(!boot().test.buildExamQuestions('Day 1', 0).some(q => q.type === 3 && q.v === undefined));
+console.log(`PASS 11: ${contextCount} context questions from reviewed examples — one blank, 4 distinct same-day options, no same-reading/synonym distractor, rehydration; candidates and missing content skipped.`);
 
 // Test 12: Import replaces only jlpt_ keys, and a write failure mid-import restores the original records
 (async () => {

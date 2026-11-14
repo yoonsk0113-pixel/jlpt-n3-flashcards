@@ -133,6 +133,16 @@
     return !/[ゃゅょ](?=[ゃゅょ])/.test(s) && !/(?:^|[^きぎしじちにひびぴみり])[ゃゅょ]/.test(s);
   }
 
+  // 단어장 단어 중 같은 표기에 다른 유효한(또는 사전에 실린 변이) 읽기가 있는 경우. 이 읽기는 오답으로 쓰지 않습니다(복수 정답 방지).
+  // 글자별 음훈을 단순히 이은 읽기(発見→はつけん 등)는 유효한 읽기가 아니라 전형적인 함정이라 목록에 넣지 않습니다.
+  const ALT_READINGS = {
+    大家: ['たいか', 'たいけ'], 最中: ['もなか', 'さなか'], 十分: ['じっぷん', 'じゅっぷん'], 行方: ['いくえ', 'ゆきかた', 'いきかた'],
+    人数: ['にんず'], 表: ['ひょう'], 空: ['そら', 'くう'], 角: ['かく', 'つの'], 件: ['くだん'], 床: ['とこ'], 塩: ['えん'],
+    景色: ['けいしょく'], 解ける: ['ほどける'], 止まる: ['とどまる'], 汚れる: ['けがれる'], 臭い: ['におい'], 怒る: ['いかる'],
+    当日: ['とうにち'], 夕日: ['せきじつ'], 自然: ['じねん'], 大事だ: ['おおごとだ'], 変化: ['へんげ'], 夜中: ['やちゅう'],
+    夫婦: ['めおと'], 眼鏡: ['がんきょう'], 内側: ['うちかわ'], 一方で: ['ひとかたで'], 親: ['しん'], 剥く: ['はぐ']
+  };
+
   // 오쿠리가나(끝의 히라가나)는 그대로 두고, 한자에 해당하는 읽기 부분만 변형합니다.
   function readingDistractors(word, reading, rng = Math.random) {
     if (typeof word !== 'string' || typeof reading !== 'string' || !/[一-鿿々]/.test(word)) return [];
@@ -151,7 +161,8 @@
       if (ch === 'っ') groups.sokuon.push(make(i, 1, 'つ'), make(i, 1, 'く'));
       else if (/[くつちき]/.test(ch) && i > 0 && SOKUON_NEXT.test(nextCh)) groups.sokuon.push(make(i, 1, 'っ'));
     }
-    const pools = Object.values(groups).map(list => [...new Set(list)].filter(s => s !== reading && plausibleReading(s)));
+    const alternates = ALT_READINGS[word] || [];
+    const pools = Object.values(groups).map(list => [...new Set(list)].filter(s => s !== reading && !alternates.includes(s) && plausibleReading(s)));
     pools.forEach(list => shuffleInPlace(list, rng));
     const picked = [];
     // 유형을 골고루 섞기 위해 각 유형에서 하나씩 돌아가며 고릅니다.
@@ -197,6 +208,7 @@
       if (!Array.isArray(e.examples) || e.examples.length > 1) errors.push('examples는 1개까지');
       else for (const x of e.examples) {
         if (!x || typeof x.ja !== 'string' || typeof x.ko !== 'string' || !EXAMPLE_STATUS.includes(x.status)) errors.push('example은 ja·ko·status 필요');
+        else if ((x.reading !== undefined && (typeof x.reading !== 'string' || /[\u4E00-\u9FFF々]/.test(x.reading))) || (x.review !== undefined && !['ai', 'human'].includes(x.review))) errors.push('example의 reading은 가나, review는 ai|human');
         else if (x.status === 'verified' && !x.ja.includes(e.word.replace(/[ぁ-ゖ]+$/, '') || e.word)) errors.push('검증 예문에 단어가 없음');
       }
     }
@@ -205,17 +217,65 @@
   }
 
   const verifiedExample = e => (Array.isArray(e?.examples) ? e.examples : []).find(x => x?.status === 'verified' && typeof x.ja === 'string' && x.ja.includes(e.word));
-  const wordClass = w => /い$/.test(w) ? 'i' : /[うくぐすつぬぶむる]$/.test(w) ? 'v' : 'n';
+  const wordClass = w => /だ$/.test(w) ? 'na' : /い$/.test(w) ? 'i' : /[うくぐすつぬぶむる]$/.test(w) ? 'v' : 'n';
+  const meaningTokens = m => String(m || '').split(/[,;·/()（）]|\s+/).map(t => t.trim()).filter(t => t.length >= 2);
+  // 뜻이 겹치거나 읽기가 같은 단어(替える·換える·変える 등)는 빈칸에 함께 들어갈 수 있어 오답으로 쓰지 않습니다.
+  const mayAlsoFit = (a, b) => a.hiragana === b.hiragana || meaningTokens(a.meaning).some(t => meaningTokens(b.meaning).includes(t));
 
   // 검증된 예문에서 문맥 문항을 만듭니다. 같은 품사형 오답 3개를 못 구하면 null(출제 안 함).
   function contextQuestion(entry, pool, rng = Math.random) {
     const ex = verifiedExample(entry);
     if (!ex) return null;
     const cls = wordClass(entry.word);
-    const others = shuffleInPlace(pool.filter(e => e !== entry && e.word !== entry.word && wordClass(e.word) === cls && !ex.ja.includes(e.word)).map(e => e.word), rng);
+    const others = shuffleInPlace(pool.filter(e => e !== entry && e.word !== entry.word && wordClass(e.word) === cls && !ex.ja.includes(e.word) && !mayAlsoFit(entry, e)).map(e => e.word), rng);
     const distractors = [...new Set(others)].slice(0, 3);
     if (distractors.length < 3) return null;
     return { prompt: ex.ja.replace(entry.word, '（　）'), ko: ex.ko, answer: entry.word, distractors };
+  }
+
+  // ---------- F13 한국 한자음 ↔ 일본어 음독 대응 힌트 ----------
+  // 단어 데이터의 kanji_composition(예: 「서로 상(相) + 손 수(手)」)에 있는 한국 한자음과 읽기를, 받침·초성 대응 경향으로
+  // 한 가지로만 맞출 수 있을 때만 힌트를 만듭니다. 맞지 않으면(훈독·혼합 읽기 등) 만들지 않습니다. 규칙은 경향이며 예외가 있습니다.
+  const JONG_RULE = { 0: { ok: /[あいうえおかきくけこさしすせそたてとなにぬねのはひふへほまみむめもやゆよらりるれろわがぎぐげござじずぜぞだでどばびぶべぼぱぴぷぺぽゃゅょ]$/, label: '받침 없음→모음으로 끝남' },
+    1: { ok: /[くき]$/, sokuon: true, label: 'ㄱ→く·き' }, 4: { ok: /ん$/, label: 'ㄴ→ん' }, 16: { ok: /ん$/, label: 'ㅁ→ん' },
+    8: { ok: /[つち]$/, sokuon: true, label: 'ㄹ→つ·ち' }, 17: { ok: /[うつ]$/, sokuon: true, label: 'ㅂ→う·つ' }, 21: { ok: /[うい]$/, label: 'ㅇ→う·い(장음)' } };
+  const ROWS = { k: 'かきくけこ', g: 'がぎぐげご', s: 'さしすせそ', z: 'ざじずぜぞ', t: 'たちつてと', d: 'だぢづでど', n: 'なにぬねの', h: 'はひふへほ', b: 'ばびぶべぼ', p: 'ぱぴぷぺぽ', m: 'まみむめも', y: 'やゆよ', r: 'らりるれろ', w: 'わ', v: 'あいうえお' };
+  const rowOf = ch => Object.keys(ROWS).find(k => ROWS[k].includes(ch));
+  const CHO_ROWS = { 0: 'kg', 1: 'kg', 2: 'nz', 3: 'td', 5: 'r', 6: 'mb', 7: 'hbp', 9: 'sz', 10: 'sz', 11: 'vygwzn', 12: 'sztd', 14: 'sztd', 15: 'kg', 16: 'td', 17: 'hbp', 18: 'kgwv' };
+  // 한국어 한자음과 뜻이 달라 오해하기 쉬운 단어(거짓 짝).
+  const SINO_FALSE_FRIENDS = {
+    大家: '한국어 「대가(거장)」가 아니라 「집주인」이에요.', 結構: '「결구」와 무관하게 「꽤·괜찮다」라는 뜻이에요.', 留守: '「유수」가 아니라 「부재중」이에요.',
+    大事だ: '「대사」가 아니라 「소중하다」예요.', 丁寧: '「정녕」이 아니라 「정중함·꼼꼼함」이에요.', 都合: '「도합」이 아니라 「사정·형편」이에요.',
+    自慢: '「자만」이 아니라 「자랑」이에요.', 迷惑: '「미혹」이 아니라 「폐·민폐」예요.', 大変だ: '「대변」이 아니라 「힘들다·큰일이다」예요.',
+    景色: '「경색」이 아니라 「경치」예요.', 文句: '「문구(글귀)」가 아니라 「불평」이에요.', 夢中: '「몽중(꿈속)」이 아니라 「열중」이에요.',
+    真剣: '「진검」이 아니라 「진지함」이에요.', 得意だ: '「득의」가 아니라 「잘하다·자신 있다」예요.'
+  };
+
+  function sinoKoreanHint(entry) {
+    const warning = SINO_FALSE_FRIENDS[entry?.word] || null;
+    const word = String(entry?.word || '').replace(/だ$/, ''), reading = String(entry?.hiragana || '').replace(/だ$/, '');
+    const chars = [...word];
+    const eum = new Map([...String(entry?.kanji_composition || '').matchAll(/([가-힣])\s*\(([\u4E00-\u9FFF])\)/g)].map(m => [m[2], m[1]]));
+    let pairs = null;
+    if (chars.length >= 2 && chars.length <= 4 && chars.every(c => /[\u4E00-\u9FFF]/.test(c) && eum.has(c))) {
+      const found = [];
+      const walk = (i, pos, acc) => {
+        if (found.length > 1) return;
+        if (i === chars.length) { if (pos === reading.length) found.push(acc); return; }
+        const syl = eum.get(chars[i]).charCodeAt(0) - 0xAC00, jong = syl % 28, cho = Math.floor(syl / 588), rule = JONG_RULE[jong];
+        if (!rule) return;
+        for (let len = 1; len <= 4 && pos + len <= reading.length; len++) {
+          const seg = reading.slice(pos, pos + len), next = reading[pos + len] || '';
+          if (/^[ゃゅょっん]/.test(seg) || !(CHO_ROWS[cho] || '').includes(rowOf(seg[0]))) continue;
+          const sokuonOk = rule.sokuon && seg.endsWith('っ') && /[かきくけこさしすせそたちつてとぱぴぷぺぽ]/.test(next);
+          if (rule.ok.test(seg) || sokuonOk) walk(i + 1, pos + len, [...acc, { kanji: chars[i], ko: eum.get(chars[i]), kana: seg, rule: sokuonOk ? rule.label.split('→')[0] + '→っ(촉음)' : rule.label }]);
+        }
+      };
+      walk(0, 0, []);
+      if (found.length === 1) pairs = found[0];
+    }
+    if (!pairs && !warning) return null;
+    return { pairs, rules: pairs ? [...new Set(pairs.map(p => p.rule))] : [], warning };
   }
 
   // ---------- F15 백업/복원 ----------
@@ -243,9 +303,9 @@
   return {
     vocabId, assignIds, ID_RE,
     INTERVAL_DAYS, DAILY_LIMIT, localDate, addDays, isDate, examUpdate, reviewUpdate, dueQueue, summarize, normalizeStore, applyExam,
-    readingDistractors, plausibleReading, shuffleInPlace,
+    readingDistractors, plausibleReading, shuffleInPlace, ALT_READINGS,
     kanjiOf, relatedWords,
-    REQUIRED_FIELDS, validateEntry, verifiedExample, contextQuestion,
+    REQUIRED_FIELDS, validateEntry, verifiedExample, contextQuestion, sinoKoreanHint, SINO_FALSE_FRIENDS,
     makeBackup, parseBackup
   };
 });

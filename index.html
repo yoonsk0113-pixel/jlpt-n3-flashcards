@@ -146,6 +146,10 @@
     .vocab-related .chip-reading { color:var(--green); font-weight:600; }
     .vocab-related .chip-meaning { color:var(--muted); }
     .example-status { margin-left:6px; font-size:12px; color:var(--muted); }
+    .details .example-status { display:inline-block; margin-left:8px; padding:0 6px; border:1px solid var(--line); border-radius:6px; font-size:11px; font-weight:600; }
+    .details .example-ja, .details .example-reading, .details .example-ko { display:block; }
+    .details .example-reading { margin-top:2px; color:var(--green); font-size:13px; }
+    .details .example-ko { margin-top:2px; color:var(--muted); font-size:14px; }
     .notice { margin-top:18px; padding:14px 16px; background:#f4e3df; color:#852c29; border-radius:10px; font-size:13px; }
     .sr-only { position:absolute; width:1px; height:1px; padding:0; margin:-1px; overflow:hidden; clip-path:inset(50%); white-space:nowrap; border:0; }
     .reveal { animation:reveal .22s cubic-bezier(.16,1,.3,1); }
@@ -411,6 +415,7 @@
   <p id="announcement" class="sr-only" role="status" aria-live="polite" aria-atomic="true"></p>
 </main>
 <script src="./core.js"></script>
+<script src="./vocab-content.js"></script>
 <script>
 const wordData = {
   "Day 1": [
@@ -7711,6 +7716,14 @@ const kanjiData = {
   // F01: 모든 단어에 일차·원래 순서 기반 안정 ID(d01-001)를 붙입니다. 기존 7개 필드는 바꾸지 않습니다.
   const VOCAB_INDEX = JPCore.assignIds(modes.vocab.data);
   const VOCAB_LIST = [...VOCAB_INDEX.values()].map(v => v.entry);
+  // F10: 단어별 예문·연어(vocab-content.js)를 선택 필드로 붙입니다. 데이터에 이미 있는 필드는 덮어쓰지 않습니다.
+  const CONTENT = typeof JP_CONTENT !== 'undefined' ? JP_CONTENT : { VOCAB_CONTENT: {}, REVIEWED_BY_HUMAN: [] };
+  for (const [id, [ja, reading, ko, collocation]] of Object.entries(CONTENT.VOCAB_CONTENT)) {
+    const entry = VOCAB_INDEX.get(id)?.entry;
+    if (!entry) continue;
+    entry.examples ??= [{ ja, reading, ko, status: 'verified', review: CONTENT.REVIEWED_BY_HUMAN.includes(id) ? 'human' : 'ai' }];
+    entry.collocations ??= [collocation];
+  }
   let mode = null, config = null, data = {}, days = [], fields = [];
   let saved = new Map(), signatures = new Map();
   let day = null, state = null, view = 'home';
@@ -8123,9 +8136,25 @@ const kanjiData = {
     if (typeof word.part_of_speech === 'string' && word.part_of_speech) row('품사', word.part_of_speech);
     if (Array.isArray(word.collocations) && word.collocations.length) row('연어', word.collocations.join(' / '), true);
     for (const ex of Array.isArray(word.examples) ? word.examples : []) {
-      if (ex && typeof ex.ja === 'string' && typeof ex.ko === 'string') row('예문', `${ex.ja}  ${ex.ko}`, true, ex.status === 'verified' ? '' : '검수 전');
+      if (!ex || typeof ex.ja !== 'string' || typeof ex.ko !== 'string') continue;
+      const li = document.createElement('li'), strong = document.createElement('strong');
+      strong.textContent = '예문';
+      const label = ex.status !== 'verified' ? '검수 전' : ex.review === 'ai' ? 'AI 검수' : '';
+      if (label) { const n = document.createElement('span'); n.className = 'example-status'; n.textContent = label; strong.append(n); }
+      const sentence = document.createElement('span'); sentence.lang = 'ja'; sentence.className = 'example-ja japanese'; sentence.textContent = ex.ja;
+      li.append(strong, sentence);
+      if (typeof ex.reading === 'string' && ex.reading) { const r = document.createElement('span'); r.lang = 'ja'; r.className = 'example-reading japanese'; r.textContent = ex.reading; li.append(r); }
+      const ko = document.createElement('span'); ko.className = 'example-ko'; ko.textContent = ex.ko; li.append(ko);
+      rows.push(li);
     }
+    const hint = typeof word.sino_korean === 'string' && word.sino_korean ? null : JPCore.sinoKoreanHint(word);
     if (typeof word.sino_korean === 'string' && word.sino_korean) row('한자어 대응', word.sino_korean);
+    else if (hint) {
+      const parts = [];
+      if (hint.pairs) parts.push(hint.pairs.map(p => `${p.kanji}(${p.ko}) ${p.kana}`).join(' · ') + `  — ${hint.rules.join(', ')} (경향이며 예외가 있어요)`);
+      if (hint.warning) parts.push('주의: ' + hint.warning);
+      row('한자음 대응', parts.join('\n'));
+    }
     if (typeof word.cognate === 'string' && word.cognate) row('어원 메모', word.cognate);
     return rows;
   }
@@ -8363,7 +8392,8 @@ const kanjiData = {
   // 問題3은 prompt에 （　）를 정확히 1개, 問題1·2·4는 밑줄 대상 【…】을 1개, 問題5는 prompt가 【단어】입니다.
   // ko는 지문(問題5는 바르게 쓰인 정답 문장)의 한국어 해석, vocab은 그 문장에 나오는 핵심 단어 '표기|읽기|뜻'(가나 단어는 읽기 생략),
   // 問題5의 notes[i]는 선지별 해설입니다. notes는 선지와 함께 섞입니다.
-  const vq = (wordId, type, prompt, ko, vocab, options, notes) => ({ wordId, type, prompt, ko, vocab, options, correctAnswerIndex: 0, ...(notes && { notes }) });
+  // review: 'ai'는 AI 검수 완료(2026-11-14, 문법·N3 수준·오답 명확성), 사람이 검수하면 'human'으로 바꿉니다.
+  const vq = (wordId, type, prompt, ko, vocab, options, notes) => ({ wordId, type, prompt, ko, vocab, options, correctAnswerIndex: 0, review: 'ai', ...(notes && { notes }) });
 
   const verifiedQuestions = {
     'Day 1': [
@@ -8386,9 +8416,9 @@ const kanjiData = {
       vq(41, 5, '【惜しい】', '1점만 더 냈으면 이길 수 있었는데, 정말 아까운 경기였다.', ['点|てん|점(점수)', '勝つ|かつ|이기다', '試合|しあい|시합, 경기'], [
         'あと1点で勝てたのに、本当に惜しい試合だった。',
         'この料理は惜しいので、もう一杯ください。',
-        '駅まで遠いので、歩くのは惜しいです。',
+        '熱があって、体がとても惜しい。',
         '彼はいつも惜しい服を着ている。'
-      ], ['아깝게 놓친 상황(아쉽다)에 바르게 쓰였어요.', '맛있다는 「おいしい」예요. 惜しい는 「아깝다·아쉽다」예요.', '힘들다는 「大変だ・つらい」가 자연스러워요.', '옷의 모양에는 「おしゃれな」 등을 써요.']),
+      ], ['아깝게 놓친 상황(아쉽다)에 바르게 쓰였어요.', '맛있다는 「おいしい」예요. 惜しい는 「아깝다·아쉽다」예요.', '몸이 나른한 것은 「だるい」예요.', '옷의 모양에는 「おしゃれな」 등을 써요.']),
       vq(32, 1, '駅から会社まで、【往復】で一時間かかる。', '역에서 회사까지 왕복으로 한 시간 걸린다.', ['駅|えき|역', '会社|かいしゃ|회사', '一時間|いちじかん|한 시간'], ['おうふく', 'おおふく', 'おうぶく', 'おふく']),
       vq(30, 2, 'みんなで日本チームを【おうえん】しました。', '다 같이 일본 팀을 응원했습니다.', ['日本|にほん|일본', 'チーム||팀'], ['応援', '応媛', '央援', '応緩'])
     ],
@@ -8426,9 +8456,9 @@ const kanjiData = {
         '受付で、参加者に資料を配った。',
         '毎朝、犬を公園に配っている。',
         '先生の話をよく配ってください。',
-        '机の上の本を棚に配った。'
-      ], ['여러 사람에게 나눠 준다는 뜻으로 바르게 쓰였어요.', '개를 데려가는 것은 「連れて行く(つれていく)」예요.', '말을 듣는 것은 「聞く(きく)」예요.', '책을 늘어놓는 것은 「並べる(ならべる)」예요.']),
-      vq(23, 1, '毎朝、【血圧】を測っている。', '매일 아침 혈압을 재고 있다.', ['毎朝|まいあさ|매일 아침', '測る|はかる|재다'], ['けつあつ', 'けつあく', 'ちあつ', 'けっあつ']),
+        '財布を家に配ってきてしまった。'
+      ], ['여러 사람에게 나눠 준다는 뜻으로 바르게 쓰였어요.', '개를 데려가는 것은 「連れて行く(つれていく)」예요.', '말을 듣는 것은 「聞く(きく)」예요.', '두고 오는 것은 「忘れる(わすれる)」예요.']),
+      vq(23, 1, '毎朝、【血圧】を測っている。', '매일 아침 혈압을 재고 있다.', ['毎朝|まいあさ|매일 아침', '測る|はかる|재다'], ['けつあつ', 'けつあく', 'ちあつ', 'けいあつ']),
       vq(15, 2, '消防士は毎日きびしい【くんれん】をしている。', '소방관은 매일 혹독한 훈련을 하고 있다.', ['消防士|しょうぼうし|소방관', 'きびしい||엄격하다, 혹독하다'], ['訓練', '訓錬', '訊練', '訓連'])
     ],
     'Day 6': [
@@ -8459,7 +8489,7 @@ const kanjiData = {
     ],
     'Day 8': [
       vq(2, 3, '彼は（　）を言って、みんなを笑わせた。', '그는 농담을 해서 모두를 웃게 했다.', ['言う|いう|말하다', '笑う|わらう|웃다'], ['冗談', '情報', '招待', '診断']),
-      vq(46, 3, '（　）作った料理なのに、だれも食べてくれなかった。', '모처럼 만든 요리인데 아무도 먹어 주지 않았다.', ['作る|つくる|만들다', '料理|りょうり|요리', '食べる|たべる|먹다'], ['せっかく', 'ずいぶん', '少しも', 'すきずき']),
+      vq(46, 3, '（　）作った料理なのに、だれも食べてくれなかった。', '모처럼 만든 요리인데 아무도 먹어 주지 않았다.', ['作る|つくる|만들다', '料理|りょうり|요리', '食べる|たべる|먹다'], ['せっかく', 'ちっとも', '少しも', 'すきずき']),
       vq(16, 4, '学生たちは【真剣】に先生の話を聞いていた。', '학생들은 진지하게 선생님의 이야기를 듣고 있었다.', ['学生|がくせい|학생', '話|はなし|이야기', '聞く|きく|듣다'], ['まじめ', '静か', '簡単', '自由']),
       vq(23, 5, '【慎重】', '중요한 서류이니 신중하게 확인해 주세요.', ['大事|だいじ|중요함', '書類|しょるい|서류', '確認|かくにん|확인'], [
         '大事な書類なので、慎重に確認してください。',
@@ -8510,7 +8540,7 @@ const kanjiData = {
       vq(42, 2, '映画を見て、【なみだ】が出た。', '영화를 보고 눈물이 났다.', ['映画|えいが|영화', '出る|でる|나오다'], ['涙', '波', '浪', '戻'])
     ],
     'Day 12': [
-      vq(41, 3, '忙しかったが、その仕事を（　）ことにした。', '바빴지만 그 일을 맡기로 했다.', ['忙しい|いそがしい|바쁘다', '仕事|しごと|일'], ['引き受ける', '引っ張る', '乗り換える', '話し合う']),
+      vq(41, 3, '忙しかったが、その仕事を（　）ことにした。', '바빴지만 그 일을 맡기로 했다.', ['忙しい|いそがしい|바쁘다', '仕事|しごと|일'], ['引き受ける', '引っ張る', '乗り換える', '追い抜く']),
       vq(44, 3, 'このくつは、私の足に（　）だ。', '이 신발은 내 발에 딱 맞는다.', ['くつ||신발', '足|あし|발'], ['ぴったり', 'のろのろ', 'ばらばら', 'はっきり']),
       vq(0, 4, '私は数学が【苦手です】。', '저는 수학을 잘 못합니다.', ['数学|すうがく|수학'], ['得意ではありません', '大好きです', 'よくわかります', '必要です']),
       vq(16, 5, '【延ばす】', '몸 상태가 좋지 않아서 출발을 하루 미뤘다.', ['体調|たいちょう|몸 상태', '悪い|わるい|나쁘다', '出発|しゅっぱつ|출발'], [
@@ -8597,6 +8627,7 @@ const kanjiData = {
     if (q.notes !== undefined && (!Array.isArray(q.notes) || q.notes.length !== options.length || q.notes.some(n => typeof n !== 'string' || !n.trim()))) errors.push('notes는 선지마다 해설 문자열이 있어야 함');
     if (q.type === 5 && !q.notes) errors.push('問題5에는 선지별 해설(notes)이 필요함');
     if (typeof q.ko !== 'string' || !HANGUL_RE.test(q.ko)) errors.push('지문의 한국어 해석(ko)이 필요함');
+    if (!['ai', 'human'].includes(q.review)) errors.push('검수 상태(review: ai|human)가 필요함');
     if (!Array.isArray(q.vocab) || !q.vocab.length) errors.push('문장 속 단어 주석(vocab)이 필요함');
 
     for (const text of [prompt, meta.instruction, ...normalized]) {
@@ -8791,14 +8822,15 @@ const kanjiData = {
     let typeToggle = 0;
     for (const w of pool) {
       if (targetCount > 0 && questions.length >= targetCount) break;
-      const context = JPCore.contextQuestion(w, words);
+      // 자동 문항은 문맥(F11)·읽기·표기를 번갈아 냅니다. 문맥 문항을 만들 수 없으면 읽기로 대신합니다.
+      const slot = typeToggle++ % 3;
+      const context = slot === 0 ? JPCore.contextQuestion(w, words) : null;
       if (context) {
         questions.push(generatedQuestion(dayKey, 3, w.wordId, shuffle([context.answer, ...context.distractors])));
         usedWordIds.add(w.wordId);
         continue;
       }
-      const isType1 = typeToggle % 2 === 0;
-      typeToggle++;
+      const isType1 = slot !== 2;
 
       if (isType1) {
         const candidates = eligibleKanji.filter(o => o.hiragana !== w.hiragana && !Array.from(w.word).some(ch => o.word.includes(ch)));
