@@ -30,6 +30,7 @@
   // ---------- F02/F03 5단계 Leitner ----------
   const INTERVAL_DAYS = [0, 1, 3, 7, 14]; // 상자 번호 → 다음 복습까지 일수, 5는 완료
   const DAILY_LIMIT = 100;
+  const dailyLimit = value => value === 'all' ? Infinity : [20, 30, 50].includes(Number(value)) ? Number(value) : 30;
   const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 
   const localDate = (now = new Date()) => `${now.getFullYear()}-${pad(now.getMonth() + 1, 2)}-${pad(now.getDate(), 2)}`;
@@ -302,10 +303,12 @@
 
   return {
     vocabId, assignIds, ID_RE,
-    INTERVAL_DAYS, DAILY_LIMIT, localDate, addDays, isDate, examUpdate, reviewUpdate, dueQueue, summarize, normalizeStore, applyExam,
+    INTERVAL_DAYS, DAILY_LIMIT, dailyLimit, localDate, addDays, isDate, examUpdate, reviewUpdate, dueQueue, summarize, normalizeStore, applyExam,
     readingDistractors, plausibleReading, shuffleInPlace, ALT_READINGS,
     kanjiOf, relatedWords,
     REQUIRED_FIELDS, validateEntry, verifiedExample, contextQuestion, sinoKoreanHint, SINO_FALSE_FRIENDS,
     makeBackup, parseBackup
   };
 });
+
+
