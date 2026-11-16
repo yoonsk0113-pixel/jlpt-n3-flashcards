@@ -110,6 +110,9 @@
 
     /* 홈 */
     .dash-stats { grid-template-columns:repeat(4,1fr); margin-bottom:16px; }
+    .fresh-hint { display:none; margin-bottom:16px; color:var(--ink-2); }
+    .is-fresh .fresh-hint { display:block; }
+    .is-fresh .dash-stats, .is-fresh .settle { display:none; }
     #dash-due.is-due { color:var(--shu); }
     .today-steps { margin:12px 0 0; padding:0; list-style:none; }
     .today-step { display:flex; align-items:center; gap:12px; width:100%; min-height:48px; padding:8px 0; border:0; border-bottom:1px solid var(--rule); background:none; text-align:left; font-weight:600; }
@@ -143,7 +146,7 @@
     .day-title { display:block; font-size:var(--t-md); font-weight:700; }
     .day-count { display:block; font-size:var(--t-sm); color:var(--ink-3); font-variant-numeric:tabular-nums; }
     .day-status { color:var(--ai); font-size:var(--t-sm); font-weight:600; text-align:right; font-variant-numeric:tabular-nums; white-space:nowrap; }
-    button.day .day-status { padding:7px 12px; border:1px solid var(--edge); border-radius:var(--r); background:var(--paper); }
+    button.day .day-status { min-width:6.5em; padding:7px 12px; border:1px solid var(--edge); border-radius:var(--r); background:var(--paper); text-align:center; }
     .exam-day-row .day-status { color:var(--ink-3); }
     .day-tools, .exam-tools { display:flex; flex-wrap:wrap; align-items:center; gap:8px; padding:0 0 10px; }
     .exam-tools { justify-content:flex-end; }
@@ -151,7 +154,8 @@
     .study-open { color:var(--ink); font-weight:600; text-decoration:underline; text-decoration-color:var(--edge); text-underline-offset:.3em; }
     .exam-open-btn, .exam-review-btn { min-height:44px; padding:6px 14px; border:1px solid var(--edge); border-radius:var(--r); background:var(--paper); color:var(--ai); font-size:var(--t-sm); font-weight:600; }
     .exam-review-btn { border-color:var(--shu); color:var(--shu-deep); }
-    .reset-day { margin-left:auto; color:var(--ink-3); }
+    .study-open::after { content:" · 읽기 전용"; color:var(--ink-3); font-weight:400; }
+    .reset-day { margin-left:auto; padding-left:20px; color:var(--ink-3); }
     @media (hover:hover) {
       .study-open:hover:not(:disabled) { text-decoration-color:var(--ink); }
       .exam-open-btn:hover { background:var(--ai-wash); }
@@ -333,6 +337,7 @@
           <div class="stat"><dt>복습 중</dt><dd id="dash-reviewing">0</dd></div>
           <div class="stat"><dt>완료</dt><dd id="dash-completed">0</dd></div>
         </dl>
+        <p class="fresh-hint">암기 학습이나 시험에서 답한 단어가 복습 일정에 들어가고, 여기에 진행 상황이 쌓여요.</p>
         <button id="today-start" class="action primary full">오늘 학습 시작</button>
         <ol class="today-steps" aria-label="추천 학습 순서">
           <li><button id="step-review" class="today-step"><span class="today-step-num" aria-hidden="true">1</span>오늘의 복습<span id="step-review-meta" class="today-step-meta"></span></button></li>
@@ -342,7 +347,7 @@
         <div class="daily-limit"><label for="daily-limit">하루 복습 한도</label><select id="daily-limit" aria-label="하루 복습 한도: 일일 최대 복습 카드 수"><option value="20">20개</option><option value="30">30개</option><option value="50">50개</option><option value="all">전체</option></select></div>
       </section>
       <div class="home-side">
-        <section aria-labelledby="settle-title">
+        <section class="settle" aria-labelledby="settle-title">
           <div class="section-head"><h2 id="settle-title">일차별 정착</h2><span class="small">시험·복습에서 한 번 이상 맞힌 단어</span></div>
           <ol id="dash-days" class="dash-days"></ol>
           <p id="dash-recent" class="small"></p>
@@ -9652,6 +9657,7 @@ const kanjiData = {
     const reviewToday = JPCore.dueQueue(store.cards, date, reviewLimit).queue.length;
     ui['dash-due'].textContent = reviewToday;
     ui['dash-due'].classList.toggle('is-due', reviewToday > 0);
+    ui.home.classList.toggle('is-fresh', !sum.tracked);
     ui['dash-tracked'].textContent = `${Math.round((sum.tracked / VOCAB_INDEX.size) * 100)}%`;
     ui['dash-reviewing'].textContent = sum.reviewing;
     ui['dash-completed'].textContent = sum.completed;
